@@ -93,9 +93,18 @@ export async function POST(request: NextRequest) {
         }
 
         const uploadData = await uploadResponse.json();
-        const fileId = uploadData.id;
+        console.log("Upload response data:", JSON.stringify(uploadData));
 
-        console.log("PDF uploaded, file ID:", fileId);
+        // The response might be an array or have different structure
+        const fileId = Array.isArray(uploadData)
+          ? uploadData[0]?.id || uploadData[0]?.uuid || uploadData[0]
+          : uploadData.id || uploadData.uuid || uploadData;
+
+        console.log("Extracted file ID:", fileId);
+
+        if (!fileId) {
+          throw new Error("No file ID returned from upload");
+        }
 
         // Step 2: Poll for status (wait for processing to complete)
         let status = "PROCESSING";
