@@ -69,24 +69,107 @@ export async function POST(request: NextRequest) {
 2024-11-18,CHEVRON GAS STATION,-52.34,debit
 2024-11-20,WHOLE FOODS MARKET,-103.45,debit`;
     } else {
-      // Convert PDF to CSV using bankstatementconverter.com API
+      // Convert PDF using bankstatementconverter.com API (3-step process)
       try {
-        const convertFormData = new FormData();
-        convertFormData.append("file", file);
-        convertFormData.append("api_key", apiKey);
+        // Step 1: Upload PDF
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", file);
 
-        const response = await fetch("https://api.bankstatementconverter.com/convert", {
-          method: "POST",
-          body: convertFormData,
-        });
+        const uploadResponse = await fetch(
+          "https://api2.bankstatementconverter.com/api/v1/BankStatement",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: uploadFormData,
+          }
+        );
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("PDF conversion failed:", response.status, errorText);
-          throw new Error(`PDF conversion failed: ${response.statusText}`);
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error("PDF upload failed:", uploadResponse.status, errorText);
+          throw new Error(`PDF upload failed: ${uploadResponse.statusText}`);
         }
 
-        csvText = await response.text();
+        const uploadData = await uploadResponse.json();
+        const fileId = uploadData.id;
+
+        // Step 2: Poll for status (wait for processing to complete)
+        let status = "PROCESSING";
+        let attempts = 0;
+        const maxAttempts = 30; // 5 minutes max (30 * 10 seconds)
+
+        while (status === "PROCESSING" && attempts < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
+
+          const statusResponse = await fetch(
+            "https://api2.bankstatementconverter.com/api/v1/BankStatement/status",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ id: fileId }),
+            }
+          );
+
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            status = statusData.status;
+          }
+
+          attempts++;
+        }
+
+        if (status !== "READY") {
+          throw new Error("PDF processing timed out or failed");
+        }
+
+        // Step 3: Convert to JSON
+        const convertResponse = await fetch(
+          `https://api2.bankstatementconverter.com/api/v1/BankStatement/convert?format=JSON`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ id: fileId }),
+          }
+        );
+
+        if (!convertResponse.ok) {
+          const errorText = await convertResponse.text();
+          console.error("PDF conversion failed:", convertResponse.status, errorText);
+          throw new Error(`PDF conversion failed: ${convertResponse.statusText}`);
+        }
+
+        const convertData = await convertResponse.json();
+
+        // Convert JSON to CSV format
+        if (!convertData.normalised || convertData.normalised.length === 0) {
+          throw new Error("No transactions found in PDF");
+        }
+
+        // Create CSV from normalized data
+        interface NormalizedTransaction {
+          date: string;
+          description: string;
+          amount: string;
+        }
+
+        const csvLines = ["Date,Description,Amount,Type"];
+        convertData.normalised.forEach((transaction: NormalizedTransaction) => {
+          const amount = parseFloat(transaction.amount);
+          const type = amount >= 0 ? "credit" : "debit";
+          csvLines.push(
+            `${transaction.date},"${transaction.description}",${amount},${type}`
+          );
+        });
+
+        csvText = csvLines.join("\n");
       } catch (error) {
         console.error("Error calling PDF conversion API:", error);
         throw new Error(
