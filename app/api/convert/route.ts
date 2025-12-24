@@ -95,13 +95,18 @@ export async function POST(request: NextRequest) {
         const uploadData = await uploadResponse.json();
         const fileId = uploadData.id;
 
+        console.log("PDF uploaded, file ID:", fileId);
+
         // Step 2: Poll for status (wait for processing to complete)
         let status = "PROCESSING";
         let attempts = 0;
         const maxAttempts = 30; // 5 minutes max (30 * 10 seconds)
 
         while (status === "PROCESSING" && attempts < maxAttempts) {
-          await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
+          // Wait before checking (except first time)
+          if (attempts > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
+          }
 
           const statusResponse = await fetch(
             "https://api2.bankstatementconverter.com/api/v1/BankStatement/status",
@@ -117,17 +122,25 @@ export async function POST(request: NextRequest) {
 
           if (statusResponse.ok) {
             const statusData = await statusResponse.json();
+            console.log("Status check attempt", attempts + 1, "response:", statusData);
+
             // Response is an array, get first item
             status = Array.isArray(statusData) && statusData.length > 0
               ? statusData[0].status
               : "FAILED";
+
+            console.log("Current status:", status);
+          } else {
+            console.error("Status check failed:", statusResponse.status, await statusResponse.text());
           }
 
           attempts++;
         }
 
+        console.log("Final status after polling:", status, "attempts:", attempts);
+
         if (status !== "READY") {
-          throw new Error("PDF processing timed out or failed");
+          throw new Error(`PDF processing timed out or failed. Final status: ${status}`);
         }
 
         // Step 3: Convert to JSON
