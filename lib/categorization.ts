@@ -168,7 +168,7 @@ export function batchCategorizeTransactions(
  * Removes common prefixes and suffixes
  */
 export function extractMerchantName(description: string): string {
-  let cleaned = description
+  const cleaned = description
     .trim()
     .replace(/^(PURCHASE|POS|DEBIT|CREDIT|ACH|CHECK|WIRE|TRANSFER)\s+/i, "")
     .replace(/\s+\d{2}\/\d{2}\/\d{4}$/, "") // Remove date

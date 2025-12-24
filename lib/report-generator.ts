@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { Transaction, CorporateReport } from "./types";
 import { downloadFile } from "./utils";
 
@@ -53,31 +53,50 @@ export function generateCorporateReport(
 }
 
 /**
- * Export report to Excel file
+ * Export report to Excel file using ExcelJS
  */
-export function exportToExcel(report: CorporateReport, fileName?: string) {
-  const workbook = XLSX.utils.book_new();
+export async function exportToExcel(report: CorporateReport, fileName?: string) {
+  const workbook = new ExcelJS.Workbook();
 
   // Summary Sheet
-  const summaryData = [
-    ["CORPORATE BUSINESS REPORT"],
-    [],
-    ["Period:", `${report.period.start} to ${report.period.end}`],
-    [],
-    ["FINANCIAL SUMMARY"],
-    ["Total Revenue", report.summary.totalRevenue.toFixed(2)],
-    ["Total Expenses", report.summary.totalExpenses.toFixed(2)],
-    ["Net Income", report.summary.netIncome.toFixed(2)],
-    [],
-    ["CATEGORY BREAKDOWN"],
-    ["Category", "Amount", "Count", "Average"],
+  const summarySheet = workbook.addWorksheet("Summary");
+
+  // Set column widths
+  summarySheet.columns = [
+    { width: 25 },
+    { width: 15 },
+    { width: 10 },
+    { width: 15 },
   ];
+
+  // Title
+  summarySheet.addRow(["CORPORATE BUSINESS REPORT"]);
+  summarySheet.getRow(1).font = { bold: true, size: 16 };
+  summarySheet.addRow([]);
+
+  // Period
+  summarySheet.addRow(["Period:", `${report.period.start} to ${report.period.end}`]);
+  summarySheet.addRow([]);
+
+  // Financial Summary
+  summarySheet.addRow(["FINANCIAL SUMMARY"]);
+  summarySheet.getRow(5).font = { bold: true };
+  summarySheet.addRow(["Total Revenue", report.summary.totalRevenue.toFixed(2)]);
+  summarySheet.addRow(["Total Expenses", report.summary.totalExpenses.toFixed(2)]);
+  summarySheet.addRow(["Net Income", report.summary.netIncome.toFixed(2)]);
+  summarySheet.addRow([]);
+
+  // Category Breakdown
+  summarySheet.addRow(["CATEGORY BREAKDOWN"]);
+  summarySheet.getRow(10).font = { bold: true };
+  const headerRow = summarySheet.addRow(["Category", "Amount", "Count", "Average"]);
+  headerRow.font = { bold: true };
 
   // Add category rows
   Object.entries(report.categories)
     .sort(([, a], [, b]) => Math.abs(b.amount) - Math.abs(a.amount))
     .forEach(([category, data]) => {
-      summaryData.push([
+      summarySheet.addRow([
         category,
         data.amount.toFixed(2),
         data.count.toString(),
@@ -85,27 +104,23 @@ export function exportToExcel(report: CorporateReport, fileName?: string) {
       ]);
     });
 
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-
-  // Set column widths
-  summarySheet["!cols"] = [
-    { wch: 25 },
-    { wch: 15 },
-    { wch: 10 },
-    { wch: 15 },
-  ];
-
-  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
-
   // Transactions Sheet
-  const transactionsData = [
-    ["Date", "Description", "Category", "Amount", "Type"],
+  const transactionsSheet = workbook.addWorksheet("Transactions");
+
+  transactionsSheet.columns = [
+    { header: "Date", width: 12 },
+    { header: "Description", width: 40 },
+    { header: "Category", width: 20 },
+    { header: "Amount", width: 12 },
+    { header: "Type", width: 10 },
   ];
 
-  report.categories &&
+  transactionsSheet.getRow(1).font = { bold: true };
+
+  if (report.categories) {
     Object.entries(report.categories).forEach(([, data]) => {
       data.transactions.forEach((transaction) => {
-        transactionsData.push([
+        transactionsSheet.addRow([
           transaction.date,
           transaction.description,
           transaction.category || "Uncategorized",
@@ -114,59 +129,50 @@ export function exportToExcel(report: CorporateReport, fileName?: string) {
         ]);
       });
     });
-
-  const transactionsSheet = XLSX.utils.aoa_to_sheet(transactionsData);
-
-  transactionsSheet["!cols"] = [
-    { wch: 12 },
-    { wch: 40 },
-    { wch: 20 },
-    { wch: 12 },
-    { wch: 10 },
-  ];
-
-  XLSX.utils.book_append_sheet(workbook, transactionsSheet, "Transactions");
+  }
 
   // Category Details Sheets
   Object.entries(report.categories)
     .sort(([, a], [, b]) => Math.abs(b.amount) - Math.abs(a.amount))
     .slice(0, 10) // Limit to top 10 categories
     .forEach(([category, data]) => {
-      const categoryData = [
-        [category.toUpperCase()],
-        [],
-        ["Total:", data.amount.toFixed(2)],
-        ["Count:", data.count.toString()],
-        ["Average:", (data.amount / data.count).toFixed(2)],
-        [],
-        ["Date", "Description", "Amount"],
+      // Sanitize sheet name (max 31 chars, no special chars)
+      const sheetName = category
+        .replace(/[:\\/?*\[\]]/g, "")
+        .substring(0, 31);
+
+      const categorySheet = workbook.addWorksheet(sheetName);
+
+      categorySheet.columns = [
+        { width: 12 },
+        { width: 40 },
+        { width: 12 },
       ];
 
+      categorySheet.addRow([category.toUpperCase()]);
+      categorySheet.getRow(1).font = { bold: true, size: 14 };
+      categorySheet.addRow([]);
+      categorySheet.addRow(["Total:", data.amount.toFixed(2)]);
+      categorySheet.addRow(["Count:", data.count.toString()]);
+      categorySheet.addRow(["Average:", (data.amount / data.count).toFixed(2)]);
+      categorySheet.addRow([]);
+
+      const headerRow = categorySheet.addRow(["Date", "Description", "Amount"]);
+      headerRow.font = { bold: true };
+
       data.transactions.forEach((transaction) => {
-        categoryData.push([
+        categorySheet.addRow([
           transaction.date,
           transaction.description,
           transaction.amount.toFixed(2),
         ]);
       });
-
-      const categorySheet = XLSX.utils.aoa_to_sheet(categoryData);
-      categorySheet["!cols"] = [{ wch: 12 }, { wch: 40 }, { wch: 12 }];
-
-      // Sanitize sheet name (max 31 chars, no special chars)
-      const sheetName = category
-        .replace(/[:\\/?*\[\]]/g, "")
-        .substring(0, 31);
-      XLSX.utils.book_append_sheet(workbook, categorySheet, sheetName);
     });
 
   // Generate Excel file
-  const excelBuffer = XLSX.write(workbook, {
-    bookType: "xlsx",
-    type: "array",
-  });
+  const buffer = await workbook.xlsx.writeBuffer();
 
-  const blob = new Blob([excelBuffer], {
+  const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
 

@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { batchCategorizeTransactions } from "@/lib/categorization";
 import { Transaction, MerchantRule } from "@/lib/types";
+import { apiRateLimiter } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  // Rate limiting
+  const identifier = request.headers.get("x-forwarded-for") || "anonymous";
+  const rateLimitResult = apiRateLimiter.check(identifier);
+
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { transactions, merchantRules } = body as {

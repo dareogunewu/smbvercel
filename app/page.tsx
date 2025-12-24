@@ -154,31 +154,46 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {/* API Key Warning */}
-          {!process.env.NEXT_PUBLIC_BANK_STATEMENT_CONVERTER_API_KEY && (
-            <Card className="border-amber-200 bg-amber-50">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-                  <div className="text-sm text-amber-800">
-                    <p className="font-semibold mb-1">API Key Not Configured</p>
-                    <p className="text-xs">
-                      Add your Bank Statement Converter API key to .env.local to enable PDF conversion.
-                      Currently using demo data.
-                    </p>
-                  </div>
+          {/* Info Card */}
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-semibold mb-1">Secure Processing</p>
+                  <p className="text-xs">
+                    Your bank statements are processed securely. PDF conversion happens server-side to protect your data.
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Footer */}
       <div className="mt-12 text-center text-sm text-gray-500">
-        <p>
+        <p className="mb-2">
           SMB Owner - Simplifying financial reporting for small business owners
         </p>
+        <div className="flex justify-center gap-4">
+          <a href="/privacy" className="hover:text-gray-700 underline">
+            Privacy Policy
+          </a>
+          <span>•</span>
+          <a href="/terms" className="hover:text-gray-700 underline">
+            Terms of Service
+          </a>
+          <span>•</span>
+          <a
+            href="https://github.com/dareogunewu/smbowner"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-700 underline"
+          >
+            GitHub
+          </a>
+        </div>
       </div>
     </div>
   );

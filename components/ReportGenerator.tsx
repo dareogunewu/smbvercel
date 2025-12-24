@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FileDown, FileSpreadsheet, Download } from "lucide-react";
+import { FileDown, FileSpreadsheet } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface ReportGeneratorProps {
@@ -25,7 +25,7 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
     return null;
   }
 
-  const handleGenerateExcel = () => {
+  const handleGenerateExcel = async () => {
     setIsGenerating(true);
 
     try {
@@ -44,7 +44,7 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
         periodEnd
       );
 
-      exportToExcel(report);
+      await exportToExcel(report);
     } catch (error) {
       console.error("Error generating report:", error);
     } finally {

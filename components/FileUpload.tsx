@@ -11,44 +11,7 @@ export function FileUpload() {
   const [isDragging, setIsDragging] = useState(false);
   const { setFileName, setUploadStatus, setErrorMessage } = useStore();
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-
-      const files = Array.from(e.dataTransfer.files);
-      const pdfFile = files.find((file) => file.type === "application/pdf");
-
-      if (pdfFile) {
-        handleFileSelection(pdfFile);
-      } else {
-        setErrorMessage("Please upload a PDF file");
-      }
-    },
-    [setErrorMessage]
-  );
-
-  const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        handleFileSelection(file);
-      }
-    },
-    []
-  );
-
-  const handleFileSelection = async (file: File) => {
+  const handleFileSelection = useCallback(async (file: File) => {
     const { setTransactions } = useStore.getState();
 
     setFileName(file.name);
@@ -85,7 +48,44 @@ export function FileUpload() {
       );
       setUploadStatus("error");
     }
-  };
+  }, [setFileName, setUploadStatus, setErrorMessage]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+
+      const files = Array.from(e.dataTransfer.files);
+      const pdfFile = files.find((file) => file.type === "application/pdf");
+
+      if (pdfFile) {
+        handleFileSelection(pdfFile);
+      } else {
+        setErrorMessage("Please upload a PDF file");
+      }
+    },
+    [handleFileSelection, setErrorMessage]
+  );
+
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleFileSelection(file);
+      }
+    },
+    [handleFileSelection]
+  );
 
   const handleClear = () => {
     setFileName(null);
