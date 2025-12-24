@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
           {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${apiKey}`,
+              Authorization: apiKey,
             },
             body: uploadFormData,
           }
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
             {
               method: "POST",
               headers: {
-                Authorization: `Bearer ${apiKey}`,
+                Authorization: apiKey,
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({ id: fileId }),
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${apiKey}`,
+              Authorization: apiKey,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ id: fileId }),
