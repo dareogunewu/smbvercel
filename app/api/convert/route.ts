@@ -111,13 +111,16 @@ export async function POST(request: NextRequest) {
                 Authorization: apiKey,
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify({ id: fileId }),
+              body: JSON.stringify([fileId]),
             }
           );
 
           if (statusResponse.ok) {
             const statusData = await statusResponse.json();
-            status = statusData.status;
+            // Response is an array, get first item
+            status = Array.isArray(statusData) && statusData.length > 0
+              ? statusData[0].status
+              : "FAILED";
           }
 
           attempts++;
@@ -136,7 +139,7 @@ export async function POST(request: NextRequest) {
               Authorization: apiKey,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ id: fileId }),
+            body: JSON.stringify([fileId]),
           }
         );
 
@@ -148,8 +151,12 @@ export async function POST(request: NextRequest) {
 
         const convertData = await convertResponse.json();
 
-        // Convert JSON to CSV format
-        if (!convertData.normalised || convertData.normalised.length === 0) {
+        // Convert response is an array of results
+        const result = Array.isArray(convertData) && convertData.length > 0
+          ? convertData[0]
+          : null;
+
+        if (!result || !result.normalised || result.normalised.length === 0) {
           throw new Error("No transactions found in PDF");
         }
 
@@ -161,7 +168,7 @@ export async function POST(request: NextRequest) {
         }
 
         const csvLines = ["Date,Description,Amount,Type"];
-        convertData.normalised.forEach((transaction: NormalizedTransaction) => {
+        result.normalised.forEach((transaction: NormalizedTransaction) => {
           const amount = parseFloat(transaction.amount);
           const type = amount >= 0 ? "credit" : "debit";
           csvLines.push(
