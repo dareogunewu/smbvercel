@@ -22,9 +22,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <ErrorBoundary>
-          <div className="flex flex-col min-h-screen">
+          <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40">
             <Header />
-            <main className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-100">
+            <main className="flex-1">
               {children}
             </main>
             <Footer />

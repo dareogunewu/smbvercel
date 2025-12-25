@@ -84,39 +84,45 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
   );
 
   return (
-    <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-      <CardHeader>
-        <CardTitle className="text-xl">Generate Report</CardTitle>
-        <CardDescription className="text-sm">
+    <Card className="border-0 shadow-[4px_4px_0px_rgba(6,41,66,0.1)]">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-2xl font-bold text-foreground">Generate Report</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground">
           Export your categorized transactions to Excel or CSV
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-4">
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="bg-white rounded-lg p-3 shadow-sm border border-green-100">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4 border-2 border-green-200/50 shadow-[2px_2px_0px_rgba(55,167,3,0.1)]">
+            <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1.5">
               Total Revenue
             </p>
-            <p className="text-lg font-bold text-green-600 truncate">
+            <p className="text-xl font-bold text-green-700 truncate">
               {formatCurrency(totalRevenue)}
             </p>
           </div>
-          <div className="bg-white rounded-lg p-3 shadow-sm border border-red-100">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+          <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-lg p-4 border-2 border-red-200/50 shadow-[2px_2px_0px_rgba(220,38,38,0.1)]">
+            <p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-1.5">
               Total Expenses
             </p>
-            <p className="text-lg font-bold text-red-600 truncate">
+            <p className="text-xl font-bold text-red-700 truncate">
               {formatCurrency(totalExpenses)}
             </p>
           </div>
-          <div className={`bg-white rounded-lg p-3 shadow-sm border ${netIncome >= 0 ? 'border-green-100' : 'border-red-100'}`}>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+          <div className={`bg-gradient-to-br rounded-lg p-4 border-2 shadow-[2px_2px_0px_rgba(6,41,66,0.1)] ${
+            netIncome >= 0
+              ? 'from-blue-50 to-cyan-50 border-blue-200/50'
+              : 'from-orange-50 to-amber-50 border-orange-200/50'
+          }`}>
+            <p className={`text-xs font-semibold uppercase tracking-wide mb-1.5 ${
+              netIncome >= 0 ? 'text-blue-700' : 'text-orange-700'
+            }`}>
               Net Income
             </p>
             <p
-              className={`text-lg font-bold truncate ${
-                netIncome >= 0 ? "text-green-600" : "text-red-600"
+              className={`text-xl font-bold truncate ${
+                netIncome >= 0 ? "text-blue-700" : "text-orange-700"
               }`}
             >
               {formatCurrency(netIncome)}
@@ -125,44 +131,44 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
         </div>
 
         {/* Progress */}
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-blue-100">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-semibold text-gray-700">Categorization Progress</span>
-            <span className="text-xl font-bold text-blue-600">{categorizedPercentage}%</span>
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-4 border-2 border-indigo-200/50 shadow-[2px_2px_0px_rgba(99,102,241,0.1)]">
+          <div className="flex justify-between items-center mb-2.5">
+            <span className="text-sm font-bold text-indigo-900">Categorization Progress</span>
+            <span className="text-2xl font-bold text-indigo-600">{categorizedPercentage}%</span>
           </div>
-          <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden mb-2">
+          <div className="h-3 bg-white/60 rounded-full overflow-hidden mb-2 border border-indigo-200/30">
             <div
-              className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500 rounded-full"
+              className="h-full bg-gradient-to-r from-primary via-indigo-500 to-purple-500 transition-all duration-500 rounded-full shadow-sm"
               style={{ width: `${categorizedPercentage}%` }}
             />
           </div>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs font-semibold text-indigo-700">
             {categorized} of {transactions.length} transactions categorized
           </p>
         </div>
 
         {/* Export Buttons */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3 pt-2">
           <Button
             onClick={handleGenerateExcel}
             disabled={isGenerating || categorized === 0}
-            className="w-full h-11 text-sm font-semibold bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
+            className="w-full h-12 text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-[4px_4px_0px_rgba(0,117,221,0.2)] hover:shadow-[2px_2px_0px_rgba(0,117,221,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all rounded-lg"
             size="lg"
           >
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            <FileSpreadsheet className="h-5 w-5 mr-2" />
             {isGenerating
               ? "Generating..."
-              : "Generate Corporate Business Report (Excel)"}
+              : "Generate Corporate Report (Excel)"}
           </Button>
 
           <Button
             onClick={handleExportCSV}
             variant="outline"
             disabled={isGenerating}
-            className="w-full h-11 text-sm font-semibold border-2 border-blue-200 hover:bg-blue-50 shadow-sm hover:shadow transition-all"
+            className="w-full h-12 text-sm font-bold border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground shadow-[4px_4px_0px_rgba(0,117,221,0.1)] hover:shadow-[2px_2px_0px_rgba(0,117,221,0.2)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all rounded-lg"
             size="lg"
           >
-            <FileDown className="h-4 w-4 mr-2" />
+            <FileDown className="h-5 w-5 mr-2" />
             Export Transactions (CSV)
           </Button>
         </div>

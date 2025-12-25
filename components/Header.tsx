@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, FileText, Shield, Scale } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 export function Header() {
   const pathname = usePathname();
@@ -10,53 +10,60 @@ export function Header() {
   const isActive = (path: string) => pathname === path;
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-white shadow-sm">
+      <div className="container mx-auto px-6">
+        <div className="flex h-[72px] items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <Sparkles className="h-6 w-6 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900">SMB Owner</span>
+          <Link href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary shadow-md">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              SMB Owner
+            </span>
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-2">
             <Link
               href="/"
-              className={`flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-blue-600 ${
-                isActive("/") ? "text-blue-600" : "text-gray-600"
+              className={`px-4 py-2 text-sm font-semibold rounded-md transition-all ${
+                isActive("/")
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-foreground/70 hover:text-foreground hover:bg-muted"
               }`}
             >
-              <FileText className="h-4 w-4" />
               Dashboard
             </Link>
             <Link
               href="/privacy"
-              className={`flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-blue-600 ${
-                isActive("/privacy") ? "text-blue-600" : "text-gray-600"
+              className={`px-4 py-2 text-sm font-semibold rounded-md transition-all ${
+                isActive("/privacy")
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-foreground/70 hover:text-foreground hover:bg-muted"
               }`}
             >
-              <Shield className="h-4 w-4" />
               Privacy
             </Link>
             <Link
               href="/terms"
-              className={`flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-blue-600 ${
-                isActive("/terms") ? "text-blue-600" : "text-gray-600"
+              className={`px-4 py-2 text-sm font-semibold rounded-md transition-all ${
+                isActive("/terms")
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-foreground/70 hover:text-foreground hover:bg-muted"
               }`}
             >
-              <Scale className="h-4 w-4" />
               Terms
             </Link>
           </nav>
 
-          {/* Mobile Menu Icon (optional - can expand later) */}
-          <div className="md:hidden">
+          {/* CTA */}
+          <div className="hidden md:block">
             <a
               href="https://github.com/dareogunewu/smbowner"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-gray-600 hover:text-blue-600"
+              className="px-5 py-2.5 text-sm font-semibold text-primary border-2 border-primary rounded-lg hover:bg-primary hover:text-primary-foreground transition-all shadow-sm hover:shadow-md"
             >
               GitHub
             </a>
