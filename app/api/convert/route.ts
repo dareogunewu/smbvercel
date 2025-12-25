@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
             }
 
             // Parse the date
-            let date = new Date(dateStr);
+            const date = new Date(dateStr);
 
             // If date parsing results in an invalid date, return original
             if (isNaN(date.getTime())) {
