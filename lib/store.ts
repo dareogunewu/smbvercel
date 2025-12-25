@@ -6,6 +6,7 @@ interface AppState {
   // Transactions
   transactions: Transaction[];
   setTransactions: (transactions: Transaction[]) => void;
+  addTransactions: (transactions: Transaction[]) => void;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   clearTransactions: () => void;
 
@@ -33,6 +34,22 @@ export const useStore = create<AppState>()(
       // Transactions
       transactions: [],
       setTransactions: (transactions) => set({ transactions }),
+      addTransactions: (newTransactions) =>
+        set((state) => ({
+          // Append new transactions, avoiding duplicates by checking description+date+amount
+          transactions: [
+            ...state.transactions,
+            ...newTransactions.filter(
+              (newTx) =>
+                !state.transactions.some(
+                  (existingTx) =>
+                    existingTx.date === newTx.date &&
+                    existingTx.description === newTx.description &&
+                    existingTx.amount === newTx.amount
+                )
+            ),
+          ],
+        })),
       updateTransaction: (id, updates) =>
         set((state) => ({
           transactions: state.transactions.map((t) =>
@@ -84,6 +101,7 @@ export const useStore = create<AppState>()(
       name: "smbowner-storage",
       partialize: (state) => ({
         merchantRules: state.merchantRules,
+        transactions: state.transactions, // Persist transactions too
       }),
     }
   )

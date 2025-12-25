@@ -8,13 +8,15 @@ import { TransactionTable } from "@/components/TransactionTable";
 import { CategoryReview } from "@/components/CategoryReview";
 import { ReportGenerator } from "@/components/ReportGenerator";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Trash2, Upload as UploadIcon } from "lucide-react";
 
 export default function Home() {
   const {
     transactions,
     setTransactions,
+    clearTransactions,
     uploadStatus,
     setUploadStatus,
     errorMessage,
@@ -22,6 +24,7 @@ export default function Home() {
   } = useStore();
 
   const [showReview, setShowReview] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
 
   // Categorize transactions when they're loaded
   useEffect(() => {
@@ -119,6 +122,41 @@ export default function Home() {
         <div className="lg:col-span-2 space-y-6">
           {/* File Upload */}
           {transactions.length === 0 && <FileUpload />}
+
+          {/* Upload Another + Clear All buttons */}
+          {transactions.length > 0 && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => setShowUpload(!showUpload)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <UploadIcon className="h-4 w-4 mr-2" />
+                    Upload Another Statement
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (confirm("Are you sure you want to clear all transactions? This cannot be undone.")) {
+                        clearTransactions();
+                        setShowUpload(false);
+                      }
+                    }}
+                    variant="destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear All
+                  </Button>
+                </div>
+                {showUpload && (
+                  <div className="mt-4">
+                    <FileUpload />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Category Review */}
           {showReview && needsReview > 0 && (

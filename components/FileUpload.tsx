@@ -12,7 +12,7 @@ export function FileUpload() {
   const { setFileName, setUploadStatus, setErrorMessage } = useStore();
 
   const handleFileSelection = useCallback(async (file: File) => {
-    const { setTransactions } = useStore.getState();
+    const { addTransactions } = useStore.getState();
 
     setFileName(file.name);
     setUploadStatus("uploading");
@@ -38,8 +38,8 @@ export function FileUpload() {
         throw new Error("Invalid response from conversion API");
       }
 
-      // Step 2: Set transactions (they'll be categorized by the page component)
-      setTransactions(convertData.transactions);
+      // Step 2: Add transactions (append to existing, they'll be categorized by the page component)
+      addTransactions(convertData.transactions);
       setUploadStatus("complete");
     } catch (error) {
       console.error("Error uploading file:", error);

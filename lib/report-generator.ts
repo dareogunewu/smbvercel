@@ -84,8 +84,9 @@ export async function exportToExcel(report: CorporateReport, fileName?: string) 
     { width: 12 }, // Extra
   ];
 
-  // Get current year
-  const currentYear = new Date().getFullYear();
+  // Determine fiscal year end based on latest transaction date
+  const latestDate = new Date(report.period.end);
+  const fiscalYearEnd = latestDate.getFullYear();
 
   // Header Section
   sheet.addRow(["COMPANY NAME:", "YOUR COMPANY NAME"]);
@@ -94,7 +95,7 @@ export async function exportToExcel(report: CorporateReport, fileName?: string) 
   sheet.addRow(["CORPORATION REVENUE AND EXPENSE REPORT"]);
   sheet.getRow(2).font = { bold: true };
 
-  sheet.addRow([`YEAR END: December ${currentYear}`]);
+  sheet.addRow([`PERIOD: ${report.period.start} to ${report.period.end} (Fiscal Year ${fiscalYearEnd})`]);
   sheet.getRow(3).font = { bold: true };
 
   // Revenue Header Row
@@ -232,16 +233,21 @@ export async function exportToExcel(report: CorporateReport, fileName?: string) 
  * Export transactions to CSV in corporate format (matches Excel template)
  */
 export function exportToCSV(transactions: Transaction[], fileName?: string) {
-  const currentYear = new Date().getFullYear();
   const fiscalMonthNames = ["April", "May", "June", "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec.", "Jan.", "Feb.", "March"];
   const fiscalMonthOrder = [3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2]; // Apr-Mar
+
+  // Determine fiscal year from transactions
+  const dates = transactions.map(t => new Date(t.date));
+  const periodStart = new Date(Math.min(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
+  const periodEnd = new Date(Math.max(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
+  const fiscalYear = new Date(periodEnd).getFullYear();
 
   const csvLines: string[] = [];
 
   // Header
   csvLines.push("COMPANY NAME:,YOUR COMPANY NAME");
   csvLines.push("CORPORATION REVENUE AND EXPENSE REPORT");
-  csvLines.push(`YEAR END: December ${currentYear}`);
+  csvLines.push(`PERIOD: ${periodStart} to ${periodEnd} (Fiscal Year ${fiscalYear})`);
   csvLines.push(""); // Empty line
 
   // Revenue section

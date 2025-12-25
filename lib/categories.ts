@@ -102,7 +102,7 @@ export const categories: Category[] = [
     id: "meals_entertainment",
     name: "Meals & entertainment",
     icon: "🍽️",
-    keywords: ["restaurant", "dining", "meal", "lunch", "dinner", "starbucks", "coffee", "food"],
+    keywords: ["restaurant", "dining", "meal", "lunch", "dinner", "starbucks", "coffee", "food", "kitchen", "cafe", "bistro", "grill", "eatery", "bar", "pub", "brewery"],
     mccCodes: [5812, 5813, 5814],
   },
   {
@@ -168,7 +168,7 @@ export const categories: Category[] = [
     id: "travel",
     name: "Travel",
     icon: "✈️",
-    keywords: ["airfare", "airline", "flight", "uber", "lyft", "taxi", "transit"],
+    keywords: ["airfare", "airline", "flight", "uber", "lyft", "taxi", "transit", "via rail", "amtrak", "train", "rail", "bus", "greyhound", "megabus"],
     mccCodes: [4111, 4112, 4411, 4511, 4722, 4784, 4789],
   },
   {
