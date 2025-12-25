@@ -53,56 +53,141 @@ export function generateCorporateReport(
 }
 
 /**
- * Export report to Excel file using ExcelJS
+ * Export report to Excel file using ExcelJS - Corporate Template Format
  */
 export async function exportToExcel(report: CorporateReport, fileName?: string) {
   const workbook = new ExcelJS.Workbook();
 
-  // Summary Sheet
-  const summarySheet = workbook.addWorksheet("Summary");
+  // Corporate Revenue & Expense Report Sheet
+  const sheet = workbook.addWorksheet("Corporate Report");
 
-  // Set column widths
-  summarySheet.columns = [
-    { width: 25 },
-    { width: 15 },
-    { width: 10 },
-    { width: 15 },
+  // Set column widths - Month/Expense column + 12 months + Total + extra columns
+  sheet.columns = [
+    { width: 25 }, // Month/expense
+    { width: 12 }, // April
+    { width: 12 }, // May
+    { width: 12 }, // June
+    { width: 12 }, // July
+    { width: 12 }, // Aug
+    { width: 12 }, // Sept
+    { width: 12 }, // Oct
+    { width: 12 }, // Nov
+    { width: 12 }, // Dec
+    { width: 12 }, // Jan
+    { width: 12 }, // Feb
+    { width: 12 }, // March
+    { width: 15 }, // Total
+    { width: 10 }, // Empty
+    { width: 10 }, // Empty
+    { width: 15 }, // House
+    { width: 12 }, // Extra
+    { width: 12 }, // Extra
   ];
 
-  // Title
-  summarySheet.addRow(["CORPORATE BUSINESS REPORT"]);
-  summarySheet.getRow(1).font = { bold: true, size: 16 };
-  summarySheet.addRow([]);
+  // Get current year
+  const currentYear = new Date().getFullYear();
 
-  // Period
-  summarySheet.addRow(["Period:", `${report.period.start} to ${report.period.end}`]);
-  summarySheet.addRow([]);
+  // Header Section
+  sheet.addRow(["COMPANY NAME:", "YOUR COMPANY NAME"]);
+  sheet.getRow(1).font = { bold: true };
 
-  // Financial Summary
-  summarySheet.addRow(["FINANCIAL SUMMARY"]);
-  summarySheet.getRow(5).font = { bold: true };
-  summarySheet.addRow(["Total Revenue", report.summary.totalRevenue.toFixed(2)]);
-  summarySheet.addRow(["Total Expenses", report.summary.totalExpenses.toFixed(2)]);
-  summarySheet.addRow(["Net Income", report.summary.netIncome.toFixed(2)]);
-  summarySheet.addRow([]);
+  sheet.addRow(["CORPORATION REVENUE AND EXPENSE REPORT"]);
+  sheet.getRow(2).font = { bold: true };
 
-  // Category Breakdown
-  summarySheet.addRow(["CATEGORY BREAKDOWN"]);
-  summarySheet.getRow(10).font = { bold: true };
-  const headerRow = summarySheet.addRow(["Category", "Amount", "Count", "Average"]);
-  headerRow.font = { bold: true };
+  sheet.addRow([`YEAR END: December ${currentYear}`]);
+  sheet.getRow(3).font = { bold: true };
 
-  // Add category rows
-  Object.entries(report.categories)
-    .sort(([, a], [, b]) => Math.abs(b.amount) - Math.abs(a.amount))
-    .forEach(([category, data]) => {
-      summarySheet.addRow([
-        category,
-        data.amount.toFixed(2),
-        data.count.toString(),
-        (data.amount / data.count).toFixed(2),
-      ]);
+  // Revenue Header Row
+  const revenueHeaderRow = sheet.addRow([
+    "Revenue (Monthly)",
+    "April", "May", "June", "July", "Aug.", "Sept.",
+    "Oct.", "Nov.", "Dec.", "Jan.", "Feb.", "March", "Total"
+  ]);
+  revenueHeaderRow.font = { bold: true };
+
+  sheet.addRow(["Revenue (GST/HST included)"]);
+  sheet.addRow([]); // Empty revenue rows
+  sheet.addRow([]);
+  sheet.addRow([]);
+
+  // Total revenue row
+  sheet.addRow(["Total"]);
+  sheet.addRow(["HST"]);
+  sheet.addRow([]); // Empty row
+
+  // Expense Header Row
+  const expenseHeaderRow = sheet.addRow([
+    "Month/expense",
+    "April", "May", "June", "July", "Aug.", "Sept.",
+    "Oct.", "Nov.", "Dec.", "Jan.", "Feb.", "March", "Total",
+    "", "", "House"
+  ]);
+  expenseHeaderRow.font = { bold: true };
+
+  // Group transactions by category and month
+  const monthlyData: Record<string, Record<number, number>> = {};
+  const categoryTotals: Record<string, number> = {};
+
+  // Month mapping (0 = Jan, 3 = Apr for fiscal year starting April)
+  const fiscalMonthOrder = [3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2]; // Apr-Mar
+
+  // Process transactions
+  Object.entries(report.categories).forEach(([category, data]) => {
+    if (!monthlyData[category]) {
+      monthlyData[category] = {};
+      categoryTotals[category] = 0;
+    }
+
+    data.transactions.forEach((transaction) => {
+      const date = new Date(transaction.date);
+      const month = date.getMonth();
+      const amount = Math.abs(transaction.amount);
+
+      if (!monthlyData[category][month]) {
+        monthlyData[category][month] = 0;
+      }
+
+      monthlyData[category][month] += amount;
+      categoryTotals[category] += amount;
     });
+  });
+
+  // Add expense category rows
+  const sortedCategories = Object.entries(categoryTotals)
+    .sort(([, a], [, b]) => b - a)
+    .map(([category]) => category);
+
+  sortedCategories.forEach((category) => {
+    const row = [category];
+
+    // Add monthly values in fiscal year order (Apr-Mar)
+    fiscalMonthOrder.forEach((month) => {
+      const value = monthlyData[category][month] || 0;
+      row.push(value > 0 ? value.toFixed(2) : "");
+    });
+
+    // Add total
+    row.push(categoryTotals[category].toFixed(2));
+
+    sheet.addRow(row);
+  });
+
+  // Add total row
+  const totalRow = ["Total"];
+  let grandTotal = 0;
+
+  fiscalMonthOrder.forEach((month) => {
+    let monthTotal = 0;
+    sortedCategories.forEach((category) => {
+      monthTotal += monthlyData[category][month] || 0;
+    });
+    totalRow.push(monthTotal > 0 ? monthTotal.toFixed(2) : "");
+    grandTotal += monthTotal;
+  });
+
+  totalRow.push(grandTotal.toFixed(2));
+  const totalRowObj = sheet.addRow(totalRow);
+  totalRowObj.font = { bold: true };
 
   // Transactions Sheet
   const transactionsSheet = workbook.addWorksheet("Transactions");
@@ -131,43 +216,6 @@ export async function exportToExcel(report: CorporateReport, fileName?: string) 
     });
   }
 
-  // Category Details Sheets
-  Object.entries(report.categories)
-    .sort(([, a], [, b]) => Math.abs(b.amount) - Math.abs(a.amount))
-    .slice(0, 10) // Limit to top 10 categories
-    .forEach(([category, data]) => {
-      // Sanitize sheet name (max 31 chars, no special chars)
-      const sheetName = category
-        .replace(/[:\\/?*\[\]]/g, "")
-        .substring(0, 31);
-
-      const categorySheet = workbook.addWorksheet(sheetName);
-
-      categorySheet.columns = [
-        { width: 12 },
-        { width: 40 },
-        { width: 12 },
-      ];
-
-      categorySheet.addRow([category.toUpperCase()]);
-      categorySheet.getRow(1).font = { bold: true, size: 14 };
-      categorySheet.addRow([]);
-      categorySheet.addRow(["Total:", data.amount.toFixed(2)]);
-      categorySheet.addRow(["Count:", data.count.toString()]);
-      categorySheet.addRow(["Average:", (data.amount / data.count).toFixed(2)]);
-      categorySheet.addRow([]);
-
-      const headerRow = categorySheet.addRow(["Date", "Description", "Amount"]);
-      headerRow.font = { bold: true };
-
-      data.transactions.forEach((transaction) => {
-        categorySheet.addRow([
-          transaction.date,
-          transaction.description,
-          transaction.amount.toFixed(2),
-        ]);
-      });
-    });
 
   // Generate Excel file
   const buffer = await workbook.xlsx.writeBuffer();
