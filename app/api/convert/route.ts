@@ -134,8 +134,9 @@ export async function POST(request: NextRequest) {
             console.log("Status check attempt", attempts + 1, "response:", statusData);
 
             // Response is an array, get first item
+            // API returns 'state' not 'status'
             status = Array.isArray(statusData) && statusData.length > 0
-              ? statusData[0].status
+              ? statusData[0].state || statusData[0].status
               : "FAILED";
 
             console.log("Current status:", status);
