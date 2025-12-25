@@ -1,194 +1,266 @@
 import { Category } from "./types";
 
 /**
- * Comprehensive category database for transaction categorization
+ * Corporate expense categories matching your business template
  */
 export const categories: Category[] = [
   {
-    id: "grocery",
-    name: "Grocery",
-    icon: "🛒",
-    keywords: [
-      "walmart", "target", "kroger", "safeway", "whole foods", "trader joe",
-      "aldi", "costco", "sam's club", "food lion", "publix", "wegmans",
-      "market", "grocery", "supermarket", "food store", "produce"
-    ],
-    mccCodes: [5411, 5422, 5441, 5451],
+    id: "accounting_fee",
+    name: "Accounting Fee",
+    icon: "📊",
+    keywords: ["accounting", "accountant", "bookkeeping", "cpa", "tax prep"],
+    mccCodes: [8111, 8931],
   },
   {
-    id: "restaurants",
-    name: "Restaurants & Dining",
-    icon: "🍽️",
-    keywords: [
-      "restaurant", "cafe", "bistro", "grill", "diner", "pizza", "burger",
-      "mcdonald", "burger king", "wendy", "subway", "chipotle", "panera",
-      "starbucks", "dunkin", "coffee", "bar", "pub", "tavern", "eatery",
-      "food", "dining", "kitchen", "taco", "sushi", "chinese", "thai"
-    ],
-    mccCodes: [5812, 5813, 5814],
+    id: "bank_charges",
+    name: "Bank charges",
+    icon: "🏦",
+    keywords: ["bank fee", "service charge", "atm", "overdraft", "monthly fee"],
+    mccCodes: [6010, 6011, 6012],
   },
   {
-    id: "fuel",
-    name: "Fuel & Gas",
-    icon: "⛽",
-    keywords: [
-      "shell", "chevron", "exxon", "bp", "mobil", "sunoco", "valero",
-      "gas station", "fuel", "petrol", "pump", "conoco", "citgo",
-      "marathon", "speedway", "wawa", "sheetz"
-    ],
-    mccCodes: [5541, 5542, 5983],
+    id: "business_cell_phone",
+    name: "Business Cell phone",
+    icon: "📱",
+    keywords: ["wireless", "cell", "mobile", "at&t", "verizon", "t-mobile", "bell", "rogers", "telus"],
+    mccCodes: [4814, 4816],
   },
   {
-    id: "transportation",
-    name: "Transportation",
+    id: "business_landline",
+    name: "Business Land-line",
+    icon: "☎️",
+    keywords: ["landline", "phone service", "telephone"],
+    mccCodes: [4814],
+  },
+  {
+    id: "car_insurance",
+    name: "Car insurance",
     icon: "🚗",
-    keywords: [
-      "uber", "lyft", "taxi", "transit", "metro", "subway", "bus",
-      "parking", "toll", "train", "airline", "flight", "airport"
-    ],
-    mccCodes: [4111, 4121, 4131, 4411, 4511, 4722, 4784, 4789],
-  },
-  {
-    id: "utilities",
-    name: "Utilities",
-    icon: "💡",
-    keywords: [
-      "electric", "gas company", "water", "sewer", "utility", "power",
-      "energy", "internet", "cable", "phone", "wireless", "telecom",
-      "verizon", "at&t", "t-mobile", "comcast", "spectrum"
-    ],
-    mccCodes: [4812, 4814, 4816, 4821, 4899, 4900],
-  },
-  {
-    id: "healthcare",
-    name: "Healthcare & Medical",
-    icon: "🏥",
-    keywords: [
-      "hospital", "clinic", "doctor", "physician", "medical", "health",
-      "pharmacy", "cvs", "walgreens", "rite aid", "dental", "dentist",
-      "vision", "optical", "insurance", "medicare", "prescription"
-    ],
-    mccCodes: [5912, 5975, 5976, 8011, 8021, 8031, 8041, 8042, 8043, 8049, 8050, 8062, 8071],
-  },
-  {
-    id: "entertainment",
-    name: "Entertainment",
-    icon: "🎬",
-    keywords: [
-      "netflix", "hulu", "disney", "spotify", "apple music", "youtube",
-      "theater", "cinema", "movie", "concert", "sports", "gym", "fitness",
-      "streaming", "gaming", "xbox", "playstation", "nintendo"
-    ],
-    mccCodes: [5815, 5816, 5817, 5818, 5832, 5912, 5945, 5970, 5971, 7832, 7911, 7922, 7929, 7932, 7933, 7991, 7992, 7993, 7994, 7995, 7996, 7997, 7998, 7999],
-  },
-  {
-    id: "retail",
-    name: "Retail & Shopping",
-    icon: "🛍️",
-    keywords: [
-      "amazon", "ebay", "shop", "store", "retail", "department",
-      "clothing", "apparel", "fashion", "shoes", "electronics",
-      "best buy", "home depot", "lowe's", "ikea", "furniture"
-    ],
-    mccCodes: [5309, 5310, 5311, 5331, 5399, 5611, 5621, 5631, 5641, 5651, 5661, 5691, 5697, 5698, 5699, 5712, 5713, 5714, 5718, 5719, 5722, 5732, 5733, 5734, 5735],
-  },
-  {
-    id: "insurance",
-    name: "Insurance",
-    icon: "🛡️",
-    keywords: [
-      "insurance", "insure", "policy", "premium", "coverage",
-      "geico", "state farm", "progressive", "allstate", "nationwide"
-    ],
+    keywords: ["auto insurance", "car insurance", "vehicle insurance", "geico", "state farm", "progressive"],
     mccCodes: [6300, 6381],
   },
   {
-    id: "home",
-    name: "Home & Garden",
-    icon: "🏠",
-    keywords: [
-      "rent", "mortgage", "landlord", "property", "hoa",
-      "home", "garden", "lawn", "hardware", "repair", "maintenance"
-    ],
-    mccCodes: [5712, 5713, 5714, 5718, 5719],
+    id: "car_lease",
+    name: "Car lease (finance) Payment",
+    icon: "🚙",
+    keywords: ["car payment", "auto loan", "lease", "vehicle payment", "finance"],
+    mccCodes: [6010, 6011],
   },
   {
-    id: "education",
-    name: "Education",
+    id: "charitable_donation",
+    name: "Charitable donation",
+    icon: "❤️",
+    keywords: ["charity", "donation", "donate", "nonprofit", "foundation", "giving"],
+    mccCodes: [8398, 8641, 8651],
+  },
+  {
+    id: "computer_exp",
+    name: "Computer exp",
+    icon: "💻",
+    keywords: ["computer", "laptop", "software", "adobe", "microsoft", "apple", "dell", "hp", "best buy electronics"],
+    mccCodes: [5732, 5734, 5045],
+  },
+  {
+    id: "directors_dividend",
+    name: "Director's Dividend",
+    icon: "💰",
+    keywords: ["dividend", "distribution"],
+  },
+  {
+    id: "gas",
+    name: "Gas",
+    icon: "⛽",
+    keywords: ["shell", "chevron", "exxon", "bp", "mobil", "esso", "petro", "gas station", "fuel"],
+    mccCodes: [5541, 5542, 5983],
+  },
+  {
+    id: "government_fee",
+    name: "Government fee",
+    icon: "🏛️",
+    keywords: ["government", "license", "permit", "registration", "filing fee", "regulatory"],
+  },
+  {
+    id: "incorporation_cost",
+    name: "Incorporation cost",
+    icon: "🏢",
+    keywords: ["incorporation", "business registration", "legal formation"],
+  },
+  {
+    id: "internet",
+    name: "Internet",
+    icon: "🌐",
+    keywords: ["internet", "broadband", "isp", "comcast", "spectrum", "rogers", "bell fibe"],
+    mccCodes: [4899],
+  },
+  {
+    id: "interest_expense",
+    name: "Interest expense",
+    icon: "📈",
+    keywords: ["interest", "finance charge", "loan interest"],
+  },
+  {
+    id: "meals_entertainment",
+    name: "Meals & entertainment",
+    icon: "🍽️",
+    keywords: ["restaurant", "dining", "meal", "lunch", "dinner", "starbucks", "coffee", "food"],
+    mccCodes: [5812, 5813, 5814],
+  },
+  {
+    id: "miscellaneous_exp",
+    name: "Miscellaneous exp",
+    icon: "📦",
+    keywords: ["miscellaneous", "misc", "other expense"],
+  },
+  {
+    id: "office_supplies",
+    name: "Office Supplies",
+    icon: "📎",
+    keywords: ["office", "supplies", "staples", "office depot", "paper", "pens"],
+    mccCodes: [5943],
+  },
+  {
+    id: "office_utilities",
+    name: "Office utilities",
+    icon: "💡",
+    keywords: ["electric", "electricity", "hydro", "gas", "water", "utility", "power"],
+    mccCodes: [4900],
+  },
+  {
+    id: "parking",
+    name: "Parking",
+    icon: "🅿️",
+    keywords: ["parking", "park", "garage", "meter"],
+    mccCodes: [7523],
+  },
+  {
+    id: "payroll",
+    name: "Payroll",
+    icon: "💵",
+    keywords: ["payroll", "salary", "wages", "employee", "adp", "paychex"],
+  },
+  {
+    id: "postage_deliveries",
+    name: "Postage and Deliveries",
+    icon: "📫",
+    keywords: ["postage", "mail", "shipping", "fedex", "ups", "usps", "canada post", "courier"],
+    mccCodes: [4215],
+  },
+  {
+    id: "rent",
+    name: "Rent",
+    icon: "🏢",
+    keywords: ["rent", "rental", "lease", "office rent"],
+  },
+  {
+    id: "repairs_maintenance",
+    name: "Repairs/ maintenance",
+    icon: "🔧",
+    keywords: ["repair", "maintenance", "fix", "service"],
+  },
+  {
+    id: "training",
+    name: "Training",
     icon: "📚",
-    keywords: [
-      "school", "university", "college", "tuition", "education",
-      "books", "learning", "course", "training", "academy"
-    ],
-    mccCodes: [5942, 5943, 8211, 8220, 8241, 8244, 8249, 8299],
+    keywords: ["training", "course", "seminar", "workshop", "education", "learning"],
+    mccCodes: [8211, 8220, 8299],
+  },
+  {
+    id: "travel",
+    name: "Travel",
+    icon: "✈️",
+    keywords: ["airfare", "airline", "flight", "uber", "lyft", "taxi", "transit"],
+    mccCodes: [4111, 4112, 4411, 4511, 4722, 4784, 4789],
   },
   {
     id: "professional_services",
     name: "Professional Services",
     icon: "💼",
-    keywords: [
-      "accountant", "lawyer", "attorney", "consultant", "legal",
-      "tax", "cpa", "financial", "advisor", "professional"
-    ],
+    keywords: ["lawyer", "attorney", "consultant", "legal", "advisor", "professional"],
     mccCodes: [8111, 8211, 8220, 8241, 8244, 8249, 8299, 8651, 8661, 8675, 8699],
   },
   {
-    id: "auto",
-    name: "Auto & Vehicle",
-    icon: "🚙",
-    keywords: [
-      "auto", "car", "vehicle", "mechanic", "repair", "oil change",
-      "tire", "parts", "service", "dealer", "automotive"
-    ],
-    mccCodes: [5511, 5521, 5531, 5532, 5533, 5571, 5592, 5598, 5599, 7531, 7534, 7535, 7538, 7542],
+    id: "other",
+    name: "Other",
+    icon: "📋",
+    keywords: ["other"],
   },
   {
-    id: "travel",
-    name: "Travel & Lodging",
-    icon: "✈️",
-    keywords: [
-      "hotel", "motel", "airbnb", "booking", "expedia", "travel",
-      "vacation", "resort", "lodge", "inn", "hostel"
-    ],
-    mccCodes: [3501, 3502, 3503, 3504, 3505, 3506, 3507, 3508, 3509, 3510, 3511, 3512, 3513, 3514, 3515, 3516, 3517, 3518, 3519, 3520, 3521, 3522, 3523, 3524, 3525, 3526, 3527, 3528, 3529, 3530, 4511, 7011, 7012],
+    id: "hotel",
+    name: "Hotel",
+    icon: "🏨",
+    keywords: ["hotel", "motel", "airbnb", "booking", "expedia", "resort", "lodge", "inn"],
+    mccCodes: [3501, 3502, 3503, 3504, 3505, 3506, 3507, 3508, 3509, 3510, 7011, 7012],
   },
   {
-    id: "subscriptions",
-    name: "Subscriptions",
-    icon: "📱",
-    keywords: [
-      "subscription", "recurring", "monthly", "annual", "membership",
-      "adobe", "microsoft", "dropbox", "icloud", "google"
-    ],
+    id: "groceries",
+    name: "Groceries",
+    icon: "🛒",
+    keywords: ["grocery", "supermarket", "walmart", "costco", "loblaws", "sobeys", "metro", "food basics"],
+    mccCodes: [5411, 5422, 5441, 5451],
   },
   {
-    id: "charity",
-    name: "Charity & Donations",
-    icon: "❤️",
-    keywords: [
-      "charity", "donation", "donate", "nonprofit", "foundation",
-      "giving", "fundraiser", "contribution"
-    ],
-    mccCodes: [8398, 8641, 8651, 8661, 8675, 8699],
+    id: "medical",
+    name: "Medical",
+    icon: "🏥",
+    keywords: ["medical", "doctor", "clinic", "hospital", "pharmacy", "prescription", "health"],
+    mccCodes: [5912, 5975, 5976, 8011, 8021, 8031, 8041, 8042, 8043, 8049, 8050, 8062, 8071],
   },
   {
-    id: "fees",
-    name: "Fees & Charges",
-    icon: "💳",
-    keywords: [
-      "fee", "charge", "penalty", "interest", "late", "overdraft",
-      "atm", "service charge", "bank fee"
-    ],
-    mccCodes: [6010, 6011, 6012],
+    id: "investment",
+    name: "Investment",
+    icon: "💹",
+    keywords: ["investment", "stock", "bond", "mutual fund", "etf", "securities"],
+  },
+  {
+    id: "house",
+    name: "House",
+    icon: "🏠",
+    keywords: ["mortgage", "property tax", "home insurance", "house"],
+  },
+  {
+    id: "spotify",
+    name: "Spotify",
+    icon: "🎵",
+    keywords: ["spotify"],
+  },
+  {
+    id: "shopping",
+    name: "Shopping",
+    icon: "🛍️",
+    keywords: ["amazon", "shopping", "retail", "store", "online"],
+    mccCodes: [5309, 5310, 5311, 5331, 5399, 5611, 5621, 5631, 5641, 5651, 5661, 5691, 5697, 5698, 5699],
+  },
+  {
+    id: "phone",
+    name: "Phone",
+    icon: "📞",
+    keywords: ["phone"],
+  },
+  {
+    id: "car_wash",
+    name: "Car wash",
+    icon: "🚿",
+    keywords: ["car wash", "wash", "detailing"],
+    mccCodes: [7542],
+  },
+  {
+    id: "haircut",
+    name: "Haircut",
+    icon: "💇",
+    keywords: ["haircut", "barber", "salon", "hair"],
+    mccCodes: [7230, 7298],
+  },
+  {
+    id: "lumin",
+    name: "Lumin",
+    icon: "✨",
+    keywords: ["lumin"],
   },
   {
     id: "income",
     name: "Income",
     icon: "💰",
-    keywords: [
-      "salary", "payroll", "deposit", "income", "payment received",
-      "revenue", "earnings", "refund", "reimbursement"
-    ],
+    keywords: ["income", "revenue", "payment received", "deposit", "earnings"],
   },
 ];
 
