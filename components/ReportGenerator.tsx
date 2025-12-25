@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Transaction } from "@/lib/types";
 import { generateCorporateReport, exportToExcel, exportToCSV } from "@/lib/report-generator";
+import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,6 +21,7 @@ interface ReportGeneratorProps {
 
 export function ReportGenerator({ transactions }: ReportGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const { isMultiMonthMode } = useStore();
 
   if (transactions.length === 0) {
     return null;
@@ -56,7 +58,7 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
     setIsGenerating(true);
 
     try {
-      exportToCSV(transactions);
+      exportToCSV(transactions, undefined, isMultiMonthMode);
     } catch (error) {
       console.error("Error exporting CSV:", error);
     } finally {

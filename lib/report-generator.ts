@@ -230,9 +230,48 @@ export async function exportToExcel(report: CorporateReport, fileName?: string) 
 }
 
 /**
- * Export transactions to CSV in corporate format (matches Excel template)
+ * Export transactions to CSV - Simple format for single month, detailed for multi-month
  */
-export function exportToCSV(transactions: Transaction[], fileName?: string) {
+export function exportToCSV(transactions: Transaction[], fileName?: string, isMultiMonth: boolean = false) {
+  if (!isMultiMonth) {
+    // Simple format for single month
+    const csvLines: string[] = [];
+
+    // Header
+    csvLines.push("Date,Description,Category,Amount,Type,Confidence");
+
+    // Sort by date
+    const sorted = [...transactions].sort((a, b) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Add each transaction
+    sorted.forEach((transaction) => {
+      // Format date as "MMM DD"
+      const date = new Date(transaction.date);
+      const monthName = date.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+      const day = String(date.getDate()).padStart(2, '0');
+      const formattedDate = `${monthName} ${day}`;
+
+      const row = [
+        formattedDate,
+        `"${transaction.description}"`,
+        transaction.category || "Uncategorized",
+        transaction.amount.toFixed(2),
+        transaction.type || (transaction.amount >= 0 ? "credit" : "debit"),
+        (transaction.confidence || 0).toFixed(2)
+      ];
+
+      csvLines.push(row.join(","));
+    });
+
+    const csv = csvLines.join("\n");
+    const defaultFileName = `transactions-${new Date().toISOString().split("T")[0]}.csv`;
+    downloadFile(csv, fileName || defaultFileName, "text/csv");
+    return;
+  }
+
+  // Multi-month corporate format
   const fiscalMonthNames = ["April", "May", "June", "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec.", "Jan.", "Feb.", "March"];
   const fiscalMonthOrder = [3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2]; // Apr-Mar
 

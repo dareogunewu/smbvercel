@@ -193,15 +193,32 @@ export async function POST(request: NextRequest) {
         // Helper function to normalize date to YYYY-MM-DD format
         const normalizeDate = (dateStr: string): string => {
           try {
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) {
-              return dateStr; // Return original if invalid
+            // Check if the date string already has a year (YYYY-MM-DD format)
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+              return dateStr;
             }
-            // Format as YYYY-MM-DD
+
+            // Parse the date
+            let date = new Date(dateStr);
+
+            // If date parsing results in an invalid date, return original
+            if (isNaN(date.getTime())) {
+              return dateStr;
+            }
+
+            // If the year is very old (< 2000), it's likely a parsing error
+            // Use current year instead
             const year = date.getFullYear();
+            if (year < 2000) {
+              const currentYear = new Date().getFullYear();
+              date.setFullYear(currentYear);
+            }
+
+            // Format as YYYY-MM-DD
+            const finalYear = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            return `${finalYear}-${month}-${day}`;
           } catch {
             return dateStr; // Return original if parsing fails
           }
