@@ -94,28 +94,28 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
       <CardContent className="space-y-6">
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-green-100">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-green-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
               Total Revenue
             </p>
-            <p className="text-3xl font-bold text-green-600">
+            <p className="text-2xl lg:text-3xl font-bold text-green-600 break-words">
               {formatCurrency(totalRevenue)}
             </p>
           </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-red-100">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-red-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
               Total Expenses
             </p>
-            <p className="text-3xl font-bold text-red-600">
+            <p className="text-2xl lg:text-3xl font-bold text-red-600 break-words">
               {formatCurrency(totalExpenses)}
             </p>
           </div>
-          <div className={`bg-white rounded-xl p-4 shadow-sm border ${netIncome >= 0 ? 'border-green-100' : 'border-red-100'}`}>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+          <div className={`bg-white rounded-xl p-5 shadow-sm border ${netIncome >= 0 ? 'border-green-100' : 'border-red-100'}`}>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
               Net Income
             </p>
             <p
-              className={`text-3xl font-bold ${
+              className={`text-2xl lg:text-3xl font-bold break-words ${
                 netIncome >= 0 ? "text-green-600" : "text-red-600"
               }`}
             >
