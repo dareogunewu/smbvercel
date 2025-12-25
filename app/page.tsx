@@ -10,7 +10,7 @@ import { ReportGenerator } from "@/components/ReportGenerator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Trash2, Upload as UploadIcon, Calendar, CalendarDays } from "lucide-react";
+import { AlertCircle, CheckCircle2, Trash2, Upload as UploadIcon, Calendar, CalendarDays, Check } from "lucide-react";
 
 export default function Home() {
   const {
@@ -159,7 +159,7 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {/* Upload Another + Clear All buttons */}
+          {/* Upload Another + Finish Session buttons */}
           {transactions.length > 0 && (
             <Card>
               <CardContent className="pt-6">
@@ -176,16 +176,19 @@ export default function Home() {
                   )}
                   <Button
                     onClick={() => {
-                      if (confirm("Are you sure you want to clear all transactions? This cannot be undone.")) {
+                      const message = isMultiMonthMode
+                        ? "Finish this session and start a new one? Current data will be cleared."
+                        : "Finish this session and start a new one? Current data will be cleared.";
+                      if (confirm(message)) {
                         clearTransactions();
                         setShowUpload(false);
                       }
                     }}
-                    variant="destructive"
-                    className={isMultiMonthMode ? "" : "flex-1"}
+                    variant="default"
+                    className={isMultiMonthMode ? "bg-green-600 hover:bg-green-700" : "flex-1 bg-green-600 hover:bg-green-700"}
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear All
+                    <Check className="h-4 w-4 mr-2" />
+                    Finish Session
                   </Button>
                 </div>
                 {showUpload && isMultiMonthMode && (

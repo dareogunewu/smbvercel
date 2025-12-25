@@ -17,6 +17,7 @@ export function formatCurrency(amount: number): string {
 
 /**
  * Format date to readable string (handles YYYY-MM-DD correctly regardless of timezone)
+ * Returns format: "MMM DD" (e.g., "Jan 06", "Dec 24")
  */
 export function formatDate(date: Date | string): string {
   if (typeof date === "string") {
@@ -26,7 +27,6 @@ export function formatDate(date: Date | string): string {
       // Use UTC to avoid timezone shifts
       const d = new Date(Date.UTC(year, month - 1, day));
       return new Intl.DateTimeFormat("en-US", {
-        year: "numeric",
         month: "short",
         day: "numeric",
         timeZone: "UTC",
@@ -36,7 +36,6 @@ export function formatDate(date: Date | string): string {
 
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
     month: "short",
     day: "numeric",
   }).format(d);

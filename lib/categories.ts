@@ -63,7 +63,7 @@ export const categories: Category[] = [
     id: "computer_exp",
     name: "Computer exp",
     icon: "💻",
-    keywords: ["computer", "laptop", "software", "adobe", "microsoft", "apple", "dell", "hp", "best buy electronics", "paypal *apple.com/bill", "claude.ai", "paypal *pacifymediasho"],
+    keywords: ["computer", "laptop", "software", "adobe", "microsoft", "apple", "dell", "hp", "best buy electronics", "paypal *apple.com/bill", "claude.ai", "claude", "paypal *pacifymediasho"],
     mccCodes: [5732, 5734, 5045],
   },
   {
@@ -76,7 +76,7 @@ export const categories: Category[] = [
     id: "gas",
     name: "Gas",
     icon: "⛽",
-    keywords: ["shell c", "chevron", "exxon", "bp", "mobil", "esso circle k", "esso ", "petro", "gas station", "fuel", "mfg woodston"],
+    keywords: ["shell c", "chevron", "exxon", "bp", "mobil", "esso circle k", "esso ", "petro", "gas station", "fuel", "mfg woodston", "costco gas"],
     mccCodes: [5541, 5542, 5983],
   },
   {
@@ -181,7 +181,7 @@ export const categories: Category[] = [
     id: "professional_services",
     name: "Professional Services",
     icon: "💼",
-    keywords: ["lawyer", "attorney", "consultant", "legal", "advisor", "professional", "linkedin pre", "linkedinpre"],
+    keywords: ["lawyer", "attorney", "consultant", "legal", "advisor", "professional", "linkedin pre", "linkedinpre", "linkedin"],
     mccCodes: [8111, 8211, 8220, 8241, 8244, 8249, 8299, 8651, 8661, 8675, 8699],
   },
   {
