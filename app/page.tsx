@@ -7,10 +7,12 @@ import { FileUpload } from "@/components/FileUpload";
 import { TransactionTable } from "@/components/TransactionTable";
 import { CategoryReview } from "@/components/CategoryReview";
 import { ReportGenerator } from "@/components/ReportGenerator";
+import { LoginPage } from "@/components/LoginPage";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Trash2, Upload as UploadIcon, Calendar, CalendarDays, Check } from "lucide-react";
+import { AlertCircle, CheckCircle2, Trash2, Upload as UploadIcon, Calendar, CalendarDays, Check, LogOut } from "lucide-react";
+import { isAuthenticated, clearAuth } from "@/lib/auth";
 
 export default function Home() {
   const {
@@ -27,6 +29,28 @@ export default function Home() {
 
   const [showReview, setShowReview] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check authentication on mount
+  useEffect(() => {
+    setIsLoggedIn(isAuthenticated());
+  }, []);
+
+  const handleLogout = () => {
+    if (confirm("Are you sure you want to log out? Your session will end.")) {
+      clearAuth();
+      setIsLoggedIn(false);
+    }
+  };
+
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+  };
+
+  // Show login page if not authenticated
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   // Categorize transactions when they're loaded
   useEffect(() => {
@@ -64,13 +88,23 @@ export default function Home() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* Page Title */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Dashboard
-        </h1>
-        <p className="text-gray-600">
-          Upload bank statements, categorize transactions, and generate reports
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Dashboard
+          </h1>
+          <p className="text-gray-600">
+            Upload bank statements, categorize transactions, and generate reports
+          </p>
+        </div>
+        <Button
+          onClick={handleLogout}
+          variant="outline"
+          className="gap-2"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </Button>
       </div>
 
       {/* Error Message */}
