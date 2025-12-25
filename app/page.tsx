@@ -9,7 +9,7 @@ import { CategoryReview } from "@/components/CategoryReview";
 import { ReportGenerator } from "@/components/ReportGenerator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 export default function Home() {
   const {
@@ -58,14 +58,13 @@ export default function Home() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* Header */}
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-2">
-          <Sparkles className="h-8 w-8 text-primary" />
-          SMB Owner
+      {/* Page Title */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Dashboard
         </h1>
-        <p className="text-lg text-gray-600">
-          Convert bank statements, categorize transactions, generate reports
+        <p className="text-gray-600">
+          Upload bank statements, categorize transactions, and generate reports
         </p>
       </div>
 
@@ -171,30 +170,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-12 text-center text-sm text-gray-500">
-        <p className="mb-2">
-          SMB Owner - Simplifying financial reporting for small business owners
-        </p>
-        <div className="flex justify-center gap-4">
-          <a href="/privacy" className="hover:text-gray-700 underline">
-            Privacy Policy
-          </a>
-          <span>•</span>
-          <a href="/terms" className="hover:text-gray-700 underline">
-            Terms of Service
-          </a>
-          <span>•</span>
-          <a
-            href="https://github.com/dareogunewu/smbowner"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-gray-700 underline"
-          >
-            GitHub
-          </a>
-        </div>
-      </div>
     </div>
   );
 }
