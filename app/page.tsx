@@ -36,22 +36,6 @@ export default function Home() {
     setIsLoggedIn(isAuthenticated());
   }, []);
 
-  const handleLogout = () => {
-    if (confirm("Are you sure you want to log out? Your session will end.")) {
-      clearAuth();
-      setIsLoggedIn(false);
-    }
-  };
-
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-  };
-
-  // Show login page if not authenticated
-  if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
-  }
-
   // Categorize transactions when they're loaded
   useEffect(() => {
     if (transactions.length > 0 && uploadStatus === "complete") {
@@ -80,10 +64,26 @@ export default function Home() {
     }
   }, [transactions, uploadStatus, merchantRules, setTransactions, setUploadStatus]);
 
+  const handleLogout = () => {
+    if (confirm("Are you sure you want to log out? Your session will end.")) {
+      clearAuth();
+      setIsLoggedIn(false);
+    }
+  };
+
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+  };
+
   const needsReview = transactions.filter((t) => t.needsReview).length;
   const categorized = transactions.filter(
     (t) => t.category && t.category !== "Uncategorized"
   ).length;
+
+  // Show login page if not authenticated
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
