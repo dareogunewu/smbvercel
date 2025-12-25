@@ -229,26 +229,96 @@ export async function exportToExcel(report: CorporateReport, fileName?: string) 
 }
 
 /**
- * Export transactions to CSV
+ * Export transactions to CSV in corporate format (matches Excel template)
  */
 export function exportToCSV(transactions: Transaction[], fileName?: string) {
-  const csvData = [
-    ["Date", "Description", "Category", "Amount", "Type", "Confidence"],
-  ];
+  const currentYear = new Date().getFullYear();
+  const fiscalMonthNames = ["April", "May", "June", "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec.", "Jan.", "Feb.", "March"];
+  const fiscalMonthOrder = [3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2]; // Apr-Mar
+
+  const csvLines: string[] = [];
+
+  // Header
+  csvLines.push("COMPANY NAME:,YOUR COMPANY NAME");
+  csvLines.push("CORPORATION REVENUE AND EXPENSE REPORT");
+  csvLines.push(`YEAR END: December ${currentYear}`);
+  csvLines.push(""); // Empty line
+
+  // Revenue section
+  const revenueHeader = ["Revenue (Monthly)", ...fiscalMonthNames, "Total"];
+  csvLines.push(revenueHeader.join(","));
+  csvLines.push("Revenue (GST/HST included)");
+  csvLines.push(""); // Empty revenue rows
+  csvLines.push("");
+  csvLines.push("");
+  csvLines.push("Total");
+  csvLines.push("HST");
+  csvLines.push(""); // Empty line
+
+  // Expense header
+  const expenseHeader = ["Month/expense", ...fiscalMonthNames, "Total", "", "", "House"];
+  csvLines.push(expenseHeader.join(","));
+
+  // Group transactions by category and month
+  const monthlyData: Record<string, Record<number, number>> = {};
+  const categoryTotals: Record<string, number> = {};
 
   transactions.forEach((transaction) => {
-    csvData.push([
-      transaction.date,
-      transaction.description,
-      transaction.category || "Uncategorized",
-      transaction.amount.toFixed(2),
-      transaction.type,
-      (transaction.confidence || 0).toFixed(2),
-    ]);
+    const category = transaction.category || "Uncategorized";
+    const date = new Date(transaction.date);
+    const month = date.getMonth();
+    const amount = Math.abs(transaction.amount);
+
+    if (!monthlyData[category]) {
+      monthlyData[category] = {};
+      categoryTotals[category] = 0;
+    }
+
+    if (!monthlyData[category][month]) {
+      monthlyData[category][month] = 0;
+    }
+
+    monthlyData[category][month] += amount;
+    categoryTotals[category] += amount;
   });
 
-  const csv = csvData.map((row) => row.join(",")).join("\n");
+  // Add expense category rows
+  const sortedCategories = Object.entries(categoryTotals)
+    .sort(([, a], [, b]) => b - a)
+    .map(([category]) => category);
 
-  const defaultFileName = `transactions-${new Date().toISOString().split("T")[0]}.csv`;
+  sortedCategories.forEach((category) => {
+    const row = [category];
+
+    // Add monthly values in fiscal year order (Apr-Mar)
+    fiscalMonthOrder.forEach((month) => {
+      const value = monthlyData[category][month] || 0;
+      row.push(value > 0 ? value.toFixed(2) : "");
+    });
+
+    // Add total
+    row.push(categoryTotals[category].toFixed(2));
+
+    csvLines.push(row.join(","));
+  });
+
+  // Add total row
+  const totalRow = ["Total"];
+  let grandTotal = 0;
+
+  fiscalMonthOrder.forEach((month) => {
+    let monthTotal = 0;
+    sortedCategories.forEach((category) => {
+      monthTotal += monthlyData[category][month] || 0;
+    });
+    totalRow.push(monthTotal > 0 ? monthTotal.toFixed(2) : "");
+    grandTotal += monthTotal;
+  });
+
+  totalRow.push(grandTotal.toFixed(2));
+  csvLines.push(totalRow.join(","));
+
+  const csv = csvLines.join("\n");
+  const defaultFileName = `corporate-report-${new Date().toISOString().split("T")[0]}.csv`;
   downloadFile(csv, fileName || defaultFileName, "text/csv");
 }
