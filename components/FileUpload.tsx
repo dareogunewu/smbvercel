@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { validateFile, sanitizeFileName, checkClientRateLimit } from "@/lib/sanitize";
 
 export function FileUpload() {
   const [isDragging, setIsDragging] = useState(false);
@@ -14,7 +15,22 @@ export function FileUpload() {
   const handleFileSelection = useCallback(async (file: File) => {
     const { addTransactions } = useStore.getState();
 
-    setFileName(file.name);
+    // Rate limiting check
+    if (!checkClientRateLimit('file-upload', 5, 60000)) {
+      setErrorMessage("Too many upload attempts. Please wait a minute and try again.");
+      return;
+    }
+
+    // Validate file
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      setErrorMessage(validation.error || "Invalid file");
+      return;
+    }
+
+    // Sanitize filename
+    const sanitizedName = sanitizeFileName(file.name);
+    setFileName(sanitizedName);
     setUploadStatus("uploading");
     setErrorMessage(null);
 

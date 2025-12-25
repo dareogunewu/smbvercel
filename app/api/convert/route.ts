@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadRateLimiter } from "@/lib/rate-limit";
+import { validateOrigin } from "@/lib/csrf";
 
 // File size limit: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
+  // CSRF Protection - Validate Origin
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+
+  if (!validateOrigin(origin, host)) {
+    return NextResponse.json(
+      { error: "Invalid request origin" },
+      { status: 403 }
+    );
+  }
+
   // Rate limiting
   const identifier = request.headers.get("x-forwarded-for") || "anonymous";
   const rateLimitResult = uploadRateLimiter.check(identifier);
