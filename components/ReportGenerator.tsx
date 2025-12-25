@@ -94,28 +94,28 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
       <CardContent className="space-y-5">
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-green-100">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+          <div className="bg-white rounded-lg p-3 shadow-sm border border-green-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
               Total Revenue
             </p>
-            <p className="text-xl lg:text-2xl font-bold text-green-600 break-words">
+            <p className="text-lg font-bold text-green-600 truncate">
               {formatCurrency(totalRevenue)}
             </p>
           </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-red-100">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+          <div className="bg-white rounded-lg p-3 shadow-sm border border-red-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
               Total Expenses
             </p>
-            <p className="text-xl lg:text-2xl font-bold text-red-600 break-words">
+            <p className="text-lg font-bold text-red-600 truncate">
               {formatCurrency(totalExpenses)}
             </p>
           </div>
-          <div className={`bg-white rounded-lg p-4 shadow-sm border ${netIncome >= 0 ? 'border-green-100' : 'border-red-100'}`}>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+          <div className={`bg-white rounded-lg p-3 shadow-sm border ${netIncome >= 0 ? 'border-green-100' : 'border-red-100'}`}>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
               Net Income
             </p>
             <p
-              className={`text-xl lg:text-2xl font-bold break-words ${
+              className={`text-lg font-bold truncate ${
                 netIncome >= 0 ? "text-green-600" : "text-red-600"
               }`}
             >
