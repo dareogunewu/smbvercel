@@ -10,6 +10,10 @@ interface AppState {
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   clearTransactions: () => void;
 
+  // Mode (single vs multi-month)
+  isMultiMonthMode: boolean;
+  setMultiMonthMode: (enabled: boolean) => void;
+
   // Merchant Rules (persisted)
   merchantRules: MerchantRule[];
   addMerchantRule: (rule: MerchantRule) => void;
@@ -35,21 +39,28 @@ export const useStore = create<AppState>()(
       transactions: [],
       setTransactions: (transactions) => set({ transactions }),
       addTransactions: (newTransactions) =>
-        set((state) => ({
-          // Append new transactions, avoiding duplicates by checking description+date+amount
-          transactions: [
-            ...state.transactions,
-            ...newTransactions.filter(
-              (newTx) =>
-                !state.transactions.some(
-                  (existingTx) =>
-                    existingTx.date === newTx.date &&
-                    existingTx.description === newTx.description &&
-                    existingTx.amount === newTx.amount
-                )
-            ),
-          ],
-        })),
+        set((state) => {
+          // In single-month mode, replace. In multi-month mode, append.
+          if (!state.isMultiMonthMode) {
+            return { transactions: newTransactions };
+          }
+
+          // Multi-month mode: Append new transactions, avoiding duplicates
+          return {
+            transactions: [
+              ...state.transactions,
+              ...newTransactions.filter(
+                (newTx) =>
+                  !state.transactions.some(
+                    (existingTx) =>
+                      existingTx.date === newTx.date &&
+                      existingTx.description === newTx.description &&
+                      existingTx.amount === newTx.amount
+                  )
+              ),
+            ],
+          };
+        }),
       updateTransaction: (id, updates) =>
         set((state) => ({
           transactions: state.transactions.map((t) =>
@@ -57,6 +68,10 @@ export const useStore = create<AppState>()(
           ),
         })),
       clearTransactions: () => set({ transactions: [] }),
+
+      // Mode
+      isMultiMonthMode: false,
+      setMultiMonthMode: (enabled) => set({ isMultiMonthMode: enabled }),
 
       // Merchant Rules
       merchantRules: [],
@@ -101,7 +116,8 @@ export const useStore = create<AppState>()(
       name: "smbowner-storage",
       partialize: (state) => ({
         merchantRules: state.merchantRules,
-        transactions: state.transactions, // Persist transactions too
+        transactions: state.transactions,
+        isMultiMonthMode: state.isMultiMonthMode,
       }),
     }
   )

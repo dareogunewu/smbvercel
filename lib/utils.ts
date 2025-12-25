@@ -16,9 +16,24 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
- * Format date to readable string
+ * Format date to readable string (handles YYYY-MM-DD correctly regardless of timezone)
  */
 export function formatDate(date: Date | string): string {
+  if (typeof date === "string") {
+    // Parse YYYY-MM-DD format manually to avoid timezone issues
+    const [year, month, day] = date.split("-").map(Number);
+    if (year && month && day) {
+      // Use UTC to avoid timezone shifts
+      const d = new Date(Date.UTC(year, month - 1, day));
+      return new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      }).format(d);
+    }
+  }
+
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",

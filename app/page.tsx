@@ -10,7 +10,7 @@ import { ReportGenerator } from "@/components/ReportGenerator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Trash2, Upload as UploadIcon } from "lucide-react";
+import { AlertCircle, CheckCircle2, Trash2, Upload as UploadIcon, Calendar, CalendarDays } from "lucide-react";
 
 export default function Home() {
   const {
@@ -21,6 +21,8 @@ export default function Home() {
     setUploadStatus,
     errorMessage,
     merchantRules,
+    isMultiMonthMode,
+    setMultiMonthMode,
   } = useStore();
 
   const [showReview, setShowReview] = useState(false);
@@ -123,19 +125,55 @@ export default function Home() {
           {/* File Upload */}
           {transactions.length === 0 && <FileUpload />}
 
+          {/* Mode Toggle */}
+          <Card className="border-2 border-primary/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-sm mb-1">Upload Mode</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {isMultiMonthMode
+                      ? "Multiple statements will be combined for year-end reporting"
+                      : "Each upload replaces previous data (single statement)"}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setMultiMonthMode(false)}
+                    variant={!isMultiMonthMode ? "default" : "outline"}
+                    size="sm"
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Single
+                  </Button>
+                  <Button
+                    onClick={() => setMultiMonthMode(true)}
+                    variant={isMultiMonthMode ? "default" : "outline"}
+                    size="sm"
+                  >
+                    <CalendarDays className="h-4 w-4 mr-2" />
+                    Multi-Month
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Upload Another + Clear All buttons */}
           {transactions.length > 0 && (
             <Card>
               <CardContent className="pt-6">
                 <div className="flex gap-3">
-                  <Button
-                    onClick={() => setShowUpload(!showUpload)}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    <UploadIcon className="h-4 w-4 mr-2" />
-                    Upload Another Statement
-                  </Button>
+                  {isMultiMonthMode && (
+                    <Button
+                      onClick={() => setShowUpload(!showUpload)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <UploadIcon className="h-4 w-4 mr-2" />
+                      Upload Another Statement
+                    </Button>
+                  )}
                   <Button
                     onClick={() => {
                       if (confirm("Are you sure you want to clear all transactions? This cannot be undone.")) {
@@ -144,12 +182,13 @@ export default function Home() {
                       }
                     }}
                     variant="destructive"
+                    className={isMultiMonthMode ? "" : "flex-1"}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Clear All
                   </Button>
                 </div>
-                {showUpload && (
+                {showUpload && isMultiMonthMode && (
                   <div className="mt-4">
                     <FileUpload />
                   </div>
