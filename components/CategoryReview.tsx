@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Check } from "lucide-react";
+import { AlertCircle, Check, Search } from "lucide-react";
 
 interface CategoryReviewProps {
   transactions: Transaction[];
@@ -112,6 +112,7 @@ export function CategoryReview({
                 <th className="text-right p-2 text-sm font-semibold">Amount</th>
                 <th className="text-left p-2 text-sm font-semibold">Category</th>
                 <th className="text-center p-2 text-sm font-semibold">Remember</th>
+                <th className="text-center p-2 text-sm font-semibold">Search</th>
               </tr>
             </thead>
             <tbody>
@@ -120,8 +121,8 @@ export function CategoryReview({
                   <td className="p-2 text-sm">
                     {new Date(transaction.date).toLocaleDateString()}
                   </td>
-                  <td className="p-2 text-sm max-w-xs truncate" title={transaction.description}>
-                    {transaction.description}
+                  <td className="p-2 text-sm max-w-xs" title={transaction.description}>
+                    <div className="truncate">{transaction.description}</div>
                   </td>
                   <td className="p-2 text-sm text-right font-medium">
                     {formatCurrency(Math.abs(transaction.amount))}
@@ -151,6 +152,17 @@ export function CategoryReview({
                       className="rounded border-gray-300 cursor-pointer"
                       title="Remember this merchant for future transactions"
                     />
+                  </td>
+                  <td className="p-2 text-center">
+                    <a
+                      href={`https://www.google.com/search?q=${encodeURIComponent(transaction.description)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-primary/10 text-primary transition-colors"
+                      title="Search Google for this merchant"
+                    >
+                      <Search className="h-4 w-4" />
+                    </a>
                   </td>
                 </tr>
               ))}

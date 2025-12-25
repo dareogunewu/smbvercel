@@ -17,6 +17,7 @@ export function categorizeTransaction(
     const userRule = userRules.find((rule) =>
       normalizedDescription.includes(rule.merchantName.toLowerCase())
     );
+
     if (userRule) {
       return {
         category: userRule.category,

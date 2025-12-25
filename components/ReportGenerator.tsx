@@ -98,7 +98,7 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
             <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1.5">
               Total Revenue
             </p>
-            <p className="text-xl font-bold text-green-700 truncate">
+            <p className="text-base sm:text-lg md:text-xl font-bold text-green-700 break-words">
               {formatCurrency(totalRevenue)}
             </p>
           </div>
@@ -106,7 +106,7 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
             <p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-1.5">
               Total Expenses
             </p>
-            <p className="text-xl font-bold text-red-700 truncate">
+            <p className="text-base sm:text-lg md:text-xl font-bold text-red-700 break-words">
               {formatCurrency(totalExpenses)}
             </p>
           </div>
@@ -121,7 +121,7 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
               Net Income
             </p>
             <p
-              className={`text-xl font-bold truncate ${
+              className={`text-base sm:text-lg md:text-xl font-bold break-words ${
                 netIncome >= 0 ? "text-blue-700" : "text-orange-700"
               }`}
             >
