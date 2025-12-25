@@ -86,36 +86,36 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
   return (
     <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
       <CardHeader>
-        <CardTitle className="text-2xl">Generate Report</CardTitle>
-        <CardDescription className="text-base">
+        <CardTitle className="text-xl">Generate Report</CardTitle>
+        <CardDescription className="text-sm">
           Export your categorized transactions to Excel or CSV
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-5">
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-green-100">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-green-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
               Total Revenue
             </p>
-            <p className="text-2xl lg:text-3xl font-bold text-green-600 break-words">
+            <p className="text-xl lg:text-2xl font-bold text-green-600 break-words">
               {formatCurrency(totalRevenue)}
             </p>
           </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-red-100">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-red-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
               Total Expenses
             </p>
-            <p className="text-2xl lg:text-3xl font-bold text-red-600 break-words">
+            <p className="text-xl lg:text-2xl font-bold text-red-600 break-words">
               {formatCurrency(totalExpenses)}
             </p>
           </div>
-          <div className={`bg-white rounded-xl p-5 shadow-sm border ${netIncome >= 0 ? 'border-green-100' : 'border-red-100'}`}>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+          <div className={`bg-white rounded-lg p-4 shadow-sm border ${netIncome >= 0 ? 'border-green-100' : 'border-red-100'}`}>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
               Net Income
             </p>
             <p
-              className={`text-2xl lg:text-3xl font-bold break-words ${
+              className={`text-xl lg:text-2xl font-bold break-words ${
                 netIncome >= 0 ? "text-green-600" : "text-red-600"
               }`}
             >
@@ -125,31 +125,31 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
         </div>
 
         {/* Progress */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-blue-100">
-          <div className="flex justify-between items-center mb-3">
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-blue-100">
+          <div className="flex justify-between items-center mb-2">
             <span className="text-sm font-semibold text-gray-700">Categorization Progress</span>
-            <span className="text-2xl font-bold text-blue-600">{categorizedPercentage}%</span>
+            <span className="text-xl font-bold text-blue-600">{categorizedPercentage}%</span>
           </div>
-          <div className="h-3 bg-gray-200 rounded-full overflow-hidden mb-2">
+          <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden mb-2">
             <div
               className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500 rounded-full"
               style={{ width: `${categorizedPercentage}%` }}
             />
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-xs text-gray-600">
             {categorized} of {transactions.length} transactions categorized
           </p>
         </div>
 
         {/* Export Buttons */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           <Button
             onClick={handleGenerateExcel}
             disabled={isGenerating || categorized === 0}
-            className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
+            className="w-full h-11 text-sm font-semibold bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
             size="lg"
           >
-            <FileSpreadsheet className="h-5 w-5 mr-2" />
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
             {isGenerating
               ? "Generating..."
               : "Generate Corporate Business Report (Excel)"}
@@ -159,10 +159,10 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
             onClick={handleExportCSV}
             variant="outline"
             disabled={isGenerating}
-            className="w-full h-12 text-base font-semibold border-2 border-blue-200 hover:bg-blue-50 shadow-sm hover:shadow transition-all"
+            className="w-full h-11 text-sm font-semibold border-2 border-blue-200 hover:bg-blue-50 shadow-sm hover:shadow transition-all"
             size="lg"
           >
-            <FileDown className="h-5 w-5 mr-2" />
+            <FileDown className="h-4 w-4 mr-2" />
             Export Transactions (CSV)
           </Button>
         </div>
