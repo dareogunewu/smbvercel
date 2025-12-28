@@ -5,6 +5,7 @@ FROM node:20-slim AS base
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
+    python3-venv \
     python3-dev \
     build-essential \
     libpoppler-cpp-dev \
@@ -14,6 +15,10 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Create Python virtual environment
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 # Copy package files
 COPY package*.json ./
 COPY requirements.txt ./
@@ -21,8 +26,8 @@ COPY requirements.txt ./
 # Install Node.js dependencies
 RUN npm ci
 
-# Install Python dependencies (PEP 668 - use --break-system-packages for Docker)
-RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
+# Install Python dependencies in virtual environment
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
@@ -36,12 +41,15 @@ FROM node:20-slim
 # Install Python runtime and poppler
 RUN apt-get update && apt-get install -y \
     python3 \
-    python3-pip \
+    python3-venv \
     libpoppler-cpp-dev \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Copy Python virtual environment from build stage
+COPY --from=base /opt/venv /opt/venv
 
 # Copy built application from base
 COPY --from=base /app/.next ./.next
@@ -50,13 +58,9 @@ COPY --from=base /app/package*.json ./
 COPY --from=base /app/public ./public
 COPY --from=base /app/scripts ./scripts
 
-# Copy Python packages from build stage
-COPY --from=base /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=base /usr/local/bin /usr/local/bin
-
-# Set Python path
-ENV PATH="/usr/local/bin:$PATH"
-ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
+# Set Python path to use virtual environment
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONPATH="/opt/venv/lib/python3.11/site-packages:$PYTHONPATH"
 
 # Expose port
 EXPOSE 3000
