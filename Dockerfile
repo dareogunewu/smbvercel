@@ -21,8 +21,8 @@ COPY requirements.txt ./
 # Install Node.js dependencies
 RUN npm ci
 
-# Install Python dependencies
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Install Python dependencies (PEP 668 - use --break-system-packages for Docker)
+RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Copy application code
 COPY . .
@@ -49,11 +49,14 @@ COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/package*.json ./
 COPY --from=base /app/public ./public
 COPY --from=base /app/scripts ./scripts
-COPY --from=base /root/.local /root/.local
 
-# Set Python path for user-installed packages
-ENV PATH="/root/.local/bin:$PATH"
-ENV PYTHONPATH="/root/.local/lib/python3.12/site-packages:$PYTHONPATH"
+# Copy Python packages from build stage
+COPY --from=base /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=base /usr/local/bin /usr/local/bin
+
+# Set Python path
+ENV PATH="/usr/local/bin:$PATH"
+ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
 
 # Expose port
 EXPOSE 3000
