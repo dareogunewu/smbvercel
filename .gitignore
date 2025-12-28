@@ -46,3 +46,17 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+
+# PDF test files
+*.pdf
+test_statements/

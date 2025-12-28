@@ -6,7 +6,12 @@ A powerful, production-ready web application that helps small business owners co
 
 ## Features
 
-- **PDF Upload & Conversion**: Drag-and-drop PDF bank statements with seamless conversion to CSV
+- **Multi-Bank PDF Support**: Automatically detects and parses bank statements from **17+ banks**:
+  - 🇨🇦 **Canadian Banks**: RBC, TD Canada Trust, BMO, Scotiabank, CIBC, Canadian Tire Bank
+  - 🇺🇸 **American Banks**: Bank of America, Chase, Citibank, Capital One
+  - 🌏 **International Banks**: DBS/POSB, HSBC, Maybank, OCBC, UOB, Standard Chartered, and more
+- **FREE Local Processing**: No paid API required - all PDF parsing happens locally on your server
+- **Automatic Bank Detection**: Intelligently identifies your bank and uses the appropriate parser
 - **Smart Categorization**: AI-powered transaction categorization using:
   - Keyword matching
   - MCC (Merchant Category Code) detection
@@ -16,8 +21,9 @@ A powerful, production-ready web application that helps small business owners co
 - **Merchant Learning**: System remembers your categorization preferences
 - **Excel Export**: Generate formatted corporate business reports using ExcelJS
 - **Persistent Storage**: Your merchant rules are saved locally for future use
+- **Privacy First**: Bank statements never leave your server - all processing is local
 - **Security Features**:
-  - Server-side API key management
+  - Local PDF processing (no third-party uploads)
   - Rate limiting on all API routes
   - Input validation and file size limits
   - Error boundaries for graceful failure handling
@@ -26,18 +32,24 @@ A powerful, production-ready web application that helps small business owners co
 
 - **Next.js 15** - React framework with App Router
 - **TypeScript** - Type-safe development
+- **Python 3.10+** - PDF parsing with Monopoly library
+- **Monopoly** - Multi-bank PDF statement parser (17+ banks supported)
 - **Tailwind CSS** - Utility-first styling
 - **shadcn/ui** - Beautiful, accessible components
 - **Zustand** - Lightweight state management
-- **ExcelJS** - Secure Excel file generation (replaced xlsx for security)
+- **ExcelJS** - Secure Excel file generation
 - **Zod** - Schema validation
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- API key from [bankstatementconverter.com](https://bankstatementconverter.com/)
+- **Node.js 18+** and npm
+- **Python 3.10+**
+- **System Dependencies** (for PDF processing):
+  - macOS: `brew install poppler pkg-config`
+  - Ubuntu/Debian: `apt-get install build-essential libpoppler-cpp-dev pkg-config`
+  - Other: See [Monopoly installation docs](https://github.com/benjamin-awd/monopoly)
 
 ### Local Development
 
@@ -47,20 +59,14 @@ git clone https://github.com/dareogunewu/smbowner.git
 cd smbowner
 ```
 
-2. Install dependencies:
+2. Install Node.js dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+3. Install Python dependencies:
 ```bash
-cp .env.local.example .env.local
-```
-
-Edit `.env.local` and add your API key:
-```env
-# IMPORTANT: No NEXT_PUBLIC_ prefix - server-side only for security
-BANK_STATEMENT_CONVERTER_API_KEY=your_actual_api_key
+pip3 install monopoly-core pdftotext pymupdf
 ```
 
 4. Run the development server:
@@ -74,24 +80,33 @@ npm run dev
 
 ### Deploy to Vercel (Recommended)
 
-1. Push your code to GitHub
+1. **Ensure Python Runtime**: Vercel supports Python via serverless functions. The app automatically uses Python 3.11 runtime.
 
-2. Import project in Vercel dashboard
+2. Push your code to GitHub
 
-3. Configure environment variables in Vercel:
-   - Go to Project Settings → Environment Variables
-   - Add `BANK_STATEMENT_CONVERTER_API_KEY` with your API key
-   - **Important:** Use `BANK_STATEMENT_CONVERTER_API_KEY` (without `NEXT_PUBLIC_` prefix)
+3. Import project in Vercel dashboard
 
-4. Deploy!
+4. **No environment variables needed** - all PDF processing is local!
 
-### Environment Variables
+5. Deploy!
 
-| Variable | Description | Required | Example |
-|----------|-------------|----------|---------|
-| `BANK_STATEMENT_CONVERTER_API_KEY` | API key for PDF conversion service | Yes | `api-xxxxx` |
+### System Requirements for Production
 
-**Security Note:** Never use the `NEXT_PUBLIC_` prefix for API keys. This exposes them in the client-side bundle.
+- **Node.js 18+** runtime
+- **Python 3.10+** runtime (automatically provided by Vercel)
+- **poppler** library (configure in `vercel.json` or use Docker)
+
+### Alternative: Docker Deployment
+
+For full control over dependencies:
+
+```bash
+# Use the included Dockerfile (TODO: create)
+docker build -t smbowner .
+docker run -p 3000:3000 smbowner
+```
+
+**Note:** No API keys or external services required! All processing is local and free.
 
 ### Manual Deployment
 
@@ -103,9 +118,38 @@ npm run build
 npm start
 ```
 
+## Supported Banks
+
+The app supports **17+ banks** using the Monopoly library:
+
+| Bank | Country | Credit | Debit |
+|------|---------|--------|-------|
+| Royal Bank of Canada (RBC) | 🇨🇦 Canada | ✅ | ✅ |
+| TD Canada Trust | 🇨🇦 Canada | ✅ | ✅ |
+| Bank of Montreal (BMO) | 🇨🇦 Canada | ✅ | ✅ |
+| Scotiabank | 🇨🇦 Canada | ✅ | ✅ |
+| CIBC | 🇨🇦 Canada | ✅ | ✅ |
+| Canadian Tire Bank | 🇨🇦 Canada | ✅ | ❌ |
+| Bank of America | 🇺🇸 USA | ✅ | ✅ |
+| Chase | 🇺🇸 USA | ✅ | ❌ |
+| Citibank | 🇺🇸 USA | ✅ | ❌ |
+| Capital One | 🇺🇸 USA | ✅ | ❌ |
+| DBS/POSB | 🇸🇬 Singapore | ✅ | ✅ |
+| OCBC | 🇸🇬 Singapore | ✅ | ✅ |
+| UOB | 🇸🇬 Singapore | ✅ | ✅ |
+| HSBC | International | ✅ | ❌ |
+| Maybank | 🇲🇾 Malaysia | ✅ | ✅ |
+| Standard Chartered | International | ✅ | ❌ |
+| Other Banks | Generic Parser | ✅ | ✅ |
+
+**Note:** If your bank isn't recognized, the app uses a generic parser that works with most statement formats.
+
 ## Production Checklist
 
-- [x] API keys secured server-side
+- [x] **FREE** local PDF processing (no paid APIs!)
+- [x] Multi-bank support (17+ banks)
+- [x] Automatic bank detection
+- [x] Privacy-first (no data sent to third parties)
 - [x] Rate limiting implemented
 - [x] Input validation and sanitization
 - [x] File upload size limits (10MB)
@@ -150,13 +194,15 @@ smbowner/
 └── public/               # Static assets
 ```
 
-## Security
+## Security & Privacy
 
-- **API Keys**: Stored server-side only, never exposed to client
+- **Local Processing**: PDF statements never leave your server - no third-party API calls
+- **No API Keys Required**: Zero external dependencies for PDF parsing
 - **Rate Limiting**: 5 uploads/minute, 10 API requests/minute per IP
 - **Input Validation**: File type and size validation
 - **Error Handling**: Graceful error boundaries prevent crashes
 - **Dependencies**: Regular security audits, no known vulnerabilities
+- **Privacy First**: Your financial data stays on your server
 
 ## Performance
 
@@ -186,7 +232,16 @@ For issues or questions:
 
 ## Changelog
 
-### v1.0.0 (2025-12-24)
+### v2.0.0 (2025-12-28) - Major Update: FREE Multi-Bank Support! 🎉
+- ✅ **Replaced paid API with FREE local PDF parsing**
+- ✅ **Multi-bank support**: 17+ banks including all major Canadian & US banks
+- ✅ **Automatic bank detection**: Intelligently identifies RBC, TD, BMO, Chase, etc.
+- ✅ **Privacy enhanced**: All processing is local, no data sent to third parties
+- ✅ **Cost savings**: No API subscription needed
+- ✅ **Python integration**: Uses Monopoly library for robust PDF parsing
+- ✅ **Better accuracy**: Bank-specific parsers for each institution
+
+### v1.0.0 (2024-12-24)
 - ✅ Initial production release
 - ✅ Secure API key management
 - ✅ Rate limiting on all routes
