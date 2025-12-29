@@ -39,6 +39,7 @@ export function CategoryReview({
   // Store selected categories for each transaction
   const [selectedCategories, setSelectedCategories] = useState<Record<string, string>>({});
   const [rememberMerchants, setRememberMerchants] = useState<Record<string, boolean>>({});
+  const [rememberAll, setRememberAll] = useState<boolean>(false);
 
   const categories = getAllCategoryNames();
 
@@ -62,8 +63,8 @@ export function CategoryReview({
           confidence: 1.0,
         });
 
-        // Save merchant rule if user wants to remember
-        if (rememberMerchants[transaction.id]) {
+        // Save merchant rule if user wants to remember (individual or "Remember All")
+        if (rememberAll || rememberMerchants[transaction.id]) {
           const merchantName = extractMerchantName(transaction.description);
           addMerchantRule({
             merchantName,
@@ -111,7 +112,18 @@ export function CategoryReview({
                 <th className="text-left p-2 text-sm font-semibold">Description</th>
                 <th className="text-right p-2 text-sm font-semibold">Amount</th>
                 <th className="text-left p-2 text-sm font-semibold">Category</th>
-                <th className="text-center p-2 text-sm font-semibold">Remember</th>
+                <th className="text-center p-2 text-sm font-semibold">
+                  <div className="flex items-center justify-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={rememberAll}
+                      onChange={(e) => setRememberAll(e.target.checked)}
+                      className="rounded border-gray-300 cursor-pointer"
+                      title="Remember all merchants"
+                    />
+                    <span>Remember</span>
+                  </div>
+                </th>
                 <th className="text-center p-2 text-sm font-semibold">Search</th>
               </tr>
             </thead>
