@@ -3,69 +3,88 @@ import { MerchantInfo } from "@/lib/types";
 import { apiRateLimiter } from "@/lib/rate-limit";
 
 /**
- * AI-powered merchant categorization using Claude API
- * Intelligently determines business type and suggests category
+ * FREE intelligent merchant categorization using enhanced pattern matching
+ * No API keys, no costs - 100% free
  */
-async function categorizeMerchantWithAI(merchantName: string): Promise<MerchantInfo | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+function categorizeMerchantIntelligently(merchantName: string): MerchantInfo {
+  const lowerName = merchantName.toLowerCase();
 
-  if (!apiKey) {
-    console.warn("ANTHROPIC_API_KEY not configured - falling back to keyword matching");
-    return null;
+  // Comprehensive merchant database with common patterns
+  const merchantPatterns = [
+    // Food & Dining
+    { patterns: ['starbucks', 'coffee', 'cafe', 'espresso', 'brew'], category: 'Meals & entertainment', type: 'Coffee Shop' },
+    { patterns: ['mcdonald', 'burger', 'wendys', 'kfc', 'popeyes', 'chick-fil-a'], category: 'Meals & entertainment', type: 'Fast Food' },
+    { patterns: ['restaurant', 'grill', 'bistro', 'diner', 'eatery', 'pizza', 'sushi'], category: 'Meals & entertainment', type: 'Restaurant' },
+    { patterns: ['bar', 'pub', 'tavern', 'brewery', 'lounge'], category: 'Meals & entertainment', type: 'Bar/Pub' },
+
+    // Grocery & Food Stores
+    { patterns: ['walmart', 'target', 'costco', 'whole foods', 'trader joe', 'kroger', 'safeway', 'publix'], category: 'Grocery', type: 'Grocery Store' },
+    { patterns: ['market', 'grocery', 'supermarket', 'food store', 'fresh'], category: 'Grocery', type: 'Grocery Store' },
+
+    // Gas & Auto
+    { patterns: ['shell', 'chevron', 'exxon', 'mobil', 'bp', 'texaco', 'arco', 'marathon', 'sunoco'], category: 'Gas', type: 'Gas Station' },
+    { patterns: ['gas', 'fuel', 'petroleum', 'petro'], category: 'Gas', type: 'Gas Station' },
+    { patterns: ['autozone', 'advance auto', 'napa', 'car wash', 'jiffy lube', 'midas', 'pep boys'], category: 'Auto', type: 'Auto Service' },
+
+    // Shopping & Retail
+    { patterns: ['amazon', 'ebay', 'etsy', 'shop', 'store', 'boutique'], category: 'Shopping', type: 'Retail' },
+    { patterns: ['apple', 'microsoft', 'best buy', 'electronics'], category: 'Computer exp', type: 'Electronics' },
+    { patterns: ['home depot', 'lowes', 'hardware', 'lumber'], category: 'Shopping', type: 'Hardware Store' },
+
+    // Services
+    { patterns: ['verizon', 'at&t', 'tmobile', 't-mobile', 'sprint', 'wireless', 'mobile'], category: 'Business Cell phone', type: 'Telecom' },
+    { patterns: ['comcast', 'spectrum', 'cox', 'internet', 'broadband', 'fiber'], category: 'Internet', type: 'Internet Provider' },
+    { patterns: ['netflix', 'hulu', 'disney', 'spotify', 'youtube', 'subscription'], category: 'Spotify', type: 'Streaming Service' },
+    { patterns: ['insurance', 'geico', 'state farm', 'allstate', 'progressive'], category: 'Insurance', type: 'Insurance' },
+    { patterns: ['hotel', 'marriott', 'hilton', 'hyatt', 'motel', 'inn', 'airbnb'], category: 'Travel', type: 'Lodging' },
+    { patterns: ['airline', 'airways', 'delta', 'united', 'american air', 'southwest'], category: 'Travel', type: 'Airline' },
+    { patterns: ['uber', 'lyft', 'taxi', 'cab'], category: 'Travel', type: 'Transportation' },
+    { patterns: ['parking', 'park', 'garage'], category: 'Parking', type: 'Parking' },
+
+    // Utilities & Bills
+    { patterns: ['electric', 'power', 'utility', 'water', 'gas utility', 'city of'], category: 'Office utilities', type: 'Utility' },
+    { patterns: ['paypal', 'venmo', 'zelle', 'cashapp'], category: 'Fees & Charges', type: 'Payment Service' },
+
+    // Professional
+    { patterns: ['legal', 'attorney', 'lawyer', 'law firm'], category: 'Professional Services', type: 'Legal' },
+    { patterns: ['accounting', 'cpa', 'tax'], category: 'Professional Services', type: 'Accounting' },
+    { patterns: ['consulting', 'consultant'], category: 'Professional Services', type: 'Consulting' },
+
+    // Charitable
+    { patterns: ['donation', 'charity', 'foundation', 'church', 'tithe'], category: 'Charitable donation', type: 'Charity' },
+  ];
+
+  // Check patterns
+  for (const pattern of merchantPatterns) {
+    if (pattern.patterns.some(p => lowerName.includes(p))) {
+      return {
+        name: merchantName,
+        businessType: pattern.type,
+        description: `Categorized as ${pattern.type} based on merchant name patterns`,
+        suggestedCategory: pattern.category,
+      };
+    }
   }
 
-  try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 200,
-        messages: [
-          {
-            role: "user",
-            content: `Analyze this merchant name and provide categorization: "${merchantName}"
+  // Fallback: generic keyword matching
+  return fallbackKeywordMatching(merchantName, lowerName);
+}
 
-Return ONLY a JSON object with this exact structure (no markdown, no explanation):
-{
-  "businessType": "brief business type (e.g., Coffee Shop, Gas Station, Restaurant)",
-  "description": "one sentence description",
-  "suggestedCategory": "EXACTLY ONE of: Advertising, Auto, Bank service charges, Business Cell phone, Car wash, Charitable donation, Computer exp, Equipment rental, Fees & Charges, Gas, Grocery, Insurance, Interest expense, Internet, Meals & entertainment, Office utilities, Parking, Professional Services, Repairs/ maintenance, Shopping, Spotify, Travel, Uncategorized"
-}`
-          }
-        ],
-      }),
-    });
+function fallbackKeywordMatching(merchantName: string, lowerName: string): MerchantInfo {
+  const merchantInfo: MerchantInfo = {
+    name: merchantName,
+  };
 
-    if (!response.ok) {
-      console.error("Claude API error:", response.status, await response.text());
-      return null;
-    }
-
-    const data = await response.json();
-    const textContent = data.content?.[0]?.text;
-
-    if (!textContent) {
-      return null;
-    }
-
-    // Parse the JSON response
-    const parsed = JSON.parse(textContent);
-
-    return {
-      name: merchantName,
-      businessType: parsed.businessType,
-      description: parsed.description,
-      suggestedCategory: parsed.suggestedCategory,
-    };
-  } catch (error) {
-    console.error("AI categorization failed:", error);
-    return null;
+  if (lowerName.includes("market") || lowerName.includes("food") || lowerName.includes("grocery")) {
+    merchantInfo.businessType = "Grocery Store";
+    merchantInfo.description = "Food and grocery retailer";
+    merchantInfo.suggestedCategory = "Grocery";
+  } else {
+    merchantInfo.businessType = "Unknown";
+    merchantInfo.description = "Business type not automatically detected";
   }
+
+  return merchantInfo;
 }
 
 export async function POST(request: NextRequest) {
@@ -91,74 +110,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try AI-powered categorization first
-    const aiResult = await categorizeMerchantWithAI(merchantName);
-    if (aiResult) {
-      return NextResponse.json({
-        success: true,
-        merchantInfo: aiResult,
-        source: "ai",
-      });
-    }
-
-    // Fallback to keyword-based detection
-    const merchantInfo: MerchantInfo = {
-      name: merchantName,
-    };
-
-    const lowerName = merchantName.toLowerCase();
-
-    if (
-      lowerName.includes("market") ||
-      lowerName.includes("food") ||
-      lowerName.includes("grocery")
-    ) {
-      merchantInfo.businessType = "Grocery Store";
-      merchantInfo.description = "Food and grocery retailer";
-      merchantInfo.suggestedCategory = "Grocery";
-    } else if (
-      lowerName.includes("gas") ||
-      lowerName.includes("fuel") ||
-      lowerName.includes("petroleum")
-    ) {
-      merchantInfo.businessType = "Gas Station";
-      merchantInfo.description = "Fuel and convenience store";
-      merchantInfo.suggestedCategory = "Fuel & Gas";
-    } else if (
-      lowerName.includes("restaurant") ||
-      lowerName.includes("cafe") ||
-      lowerName.includes("grill") ||
-      lowerName.includes("pizza")
-    ) {
-      merchantInfo.businessType = "Restaurant";
-      merchantInfo.description = "Food service establishment";
-      merchantInfo.suggestedCategory = "Restaurants & Dining";
-    } else if (
-      lowerName.includes("wireless") ||
-      lowerName.includes("telecom") ||
-      lowerName.includes("phone")
-    ) {
-      merchantInfo.businessType = "Telecommunications";
-      merchantInfo.description = "Phone and internet service provider";
-      merchantInfo.suggestedCategory = "Utilities";
-    } else {
-      merchantInfo.businessType = "Unknown";
-      merchantInfo.description = "Business type not automatically detected";
-    }
-
-    // TODO: Implement actual web search using Google Custom Search API
-    // or another service to get real merchant information
+    // Use FREE intelligent categorization
+    const merchantInfo = categorizeMerchantIntelligently(merchantName);
 
     return NextResponse.json({
       success: true,
       merchantInfo,
+      source: "pattern_matching",
     });
   } catch (error) {
     console.error("Error searching merchant:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to search merchant",
+        error: error instanceof Error ? error.message : "Failed to search merchant",
       },
       { status: 500 }
     );
