@@ -52,6 +52,9 @@ export function CategoryReview({
   };
 
   const handleApproveAll = () => {
+    console.log('Remember All enabled:', rememberAll);
+    console.log('Individual remember states:', rememberMerchants);
+
     reviewTransactions.forEach((transaction) => {
       const category = selectedCategories[transaction.id] || transaction.category;
 
@@ -64,8 +67,10 @@ export function CategoryReview({
         });
 
         // Save merchant rule if user wants to remember (individual or "Remember All")
-        if (rememberAll || rememberMerchants[transaction.id]) {
+        const shouldRemember = rememberAll || rememberMerchants[transaction.id];
+        if (shouldRemember) {
           const merchantName = extractMerchantName(transaction.description);
+          console.log(`Saving merchant rule: ${merchantName} → ${category}`);
           addMerchantRule({
             merchantName,
             category,
@@ -159,10 +164,11 @@ export function CategoryReview({
                   <td className="p-2 text-center">
                     <input
                       type="checkbox"
-                      checked={rememberMerchants[transaction.id] || false}
+                      checked={rememberAll || rememberMerchants[transaction.id] || false}
                       onChange={(e) => handleRememberChange(transaction.id, e.target.checked)}
-                      className="rounded border-gray-300 cursor-pointer"
-                      title="Remember this merchant for future transactions"
+                      disabled={rememberAll}
+                      className="rounded border-gray-300 cursor-pointer disabled:opacity-50"
+                      title={rememberAll ? "Remember All is enabled" : "Remember this merchant for future transactions"}
                     />
                   </td>
                   <td className="p-2 text-center">
@@ -181,6 +187,15 @@ export function CategoryReview({
             </tbody>
           </table>
         </div>
+
+        {/* Remember All Status */}
+        {rememberAll && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800 font-medium">
+              ✓ Remember All enabled - {reviewTransactions.length} merchant{reviewTransactions.length !== 1 ? 's' : ''} will be saved for future categorization
+            </p>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2 pt-2">
