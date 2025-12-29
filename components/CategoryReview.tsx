@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Transaction } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { getAllCategoryNames } from "@/lib/categories";
-import { extractMerchantName } from "@/lib/categorization";
+import { extractMerchantName, categorizeMerchantWithAI } from "@/lib/categorization";
 import { formatCurrency } from "@/lib/utils";
 import {
   Card,
@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Check, Search } from "lucide-react";
+import { AlertCircle, Check, Search, Sparkles } from "lucide-react";
 
 interface CategoryReviewProps {
   transactions: Transaction[];
@@ -40,6 +40,7 @@ export function CategoryReview({
   const [selectedCategories, setSelectedCategories] = useState<Record<string, string>>({});
   const [rememberMerchants, setRememberMerchants] = useState<Record<string, boolean>>({});
   const [rememberAll, setRememberAll] = useState<boolean>(false);
+  const [loadingAI, setLoadingAI] = useState<Record<string, boolean>>({});
 
   const categories = getAllCategoryNames();
 
@@ -49,6 +50,28 @@ export function CategoryReview({
 
   const handleRememberChange = (transactionId: string, remember: boolean) => {
     setRememberMerchants(prev => ({ ...prev, [transactionId]: remember }));
+  };
+
+  const handleAICategorize = async (transaction: Transaction) => {
+    const merchantName = extractMerchantName(transaction.description);
+
+    // Set loading state
+    setLoadingAI(prev => ({ ...prev, [transaction.id]: true }));
+
+    try {
+      const result = await categorizeMerchantWithAI(merchantName);
+
+      if (result && result.category) {
+        // Update the selected category
+        handleCategoryChange(transaction.id, result.category);
+
+        console.log(`AI categorized "${merchantName}" as "${result.category}" (source: ${result.source}, confidence: ${result.confidence})`);
+      }
+    } catch (error) {
+      console.error('AI categorization failed:', error);
+    } finally {
+      setLoadingAI(prev => ({ ...prev, [transaction.id]: false }));
+    }
   };
 
   const handleApproveAll = () => {
@@ -129,7 +152,7 @@ export function CategoryReview({
                     <span>Remember</span>
                   </div>
                 </th>
-                <th className="text-center p-2 text-sm font-semibold">Search</th>
+                <th className="text-center p-2 text-sm font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -172,15 +195,29 @@ export function CategoryReview({
                     />
                   </td>
                   <td className="p-2 text-center">
-                    <a
-                      href={`https://www.google.com/search?q=${encodeURIComponent(transaction.description)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                      title="Search Google for this merchant"
-                    >
-                      <Search className="h-4 w-4" />
-                    </a>
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => handleAICategorize(transaction)}
+                        disabled={loadingAI[transaction.id]}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-purple-100 text-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="AI Categorize with Gemini"
+                      >
+                        {loadingAI[transaction.id] ? (
+                          <span className="animate-spin">⏳</span>
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                      </button>
+                      <a
+                        href={`https://www.google.com/search?q=${encodeURIComponent(transaction.description)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-primary/10 text-primary transition-colors"
+                        title="Search Google for this merchant"
+                      >
+                        <Search className="h-4 w-4" />
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ))}
