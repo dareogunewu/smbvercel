@@ -2,6 +2,72 @@ import { NextRequest, NextResponse } from "next/server";
 import { MerchantInfo } from "@/lib/types";
 import { apiRateLimiter } from "@/lib/rate-limit";
 
+/**
+ * AI-powered merchant categorization using Claude API
+ * Intelligently determines business type and suggests category
+ */
+async function categorizeMerchantWithAI(merchantName: string): Promise<MerchantInfo | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+
+  if (!apiKey) {
+    console.warn("ANTHROPIC_API_KEY not configured - falling back to keyword matching");
+    return null;
+  }
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-3-haiku-20240307",
+        max_tokens: 200,
+        messages: [
+          {
+            role: "user",
+            content: `Analyze this merchant name and provide categorization: "${merchantName}"
+
+Return ONLY a JSON object with this exact structure (no markdown, no explanation):
+{
+  "businessType": "brief business type (e.g., Coffee Shop, Gas Station, Restaurant)",
+  "description": "one sentence description",
+  "suggestedCategory": "EXACTLY ONE of: Advertising, Auto, Bank service charges, Business Cell phone, Car wash, Charitable donation, Computer exp, Equipment rental, Fees & Charges, Gas, Grocery, Insurance, Interest expense, Internet, Meals & entertainment, Office utilities, Parking, Professional Services, Repairs/ maintenance, Shopping, Spotify, Travel, Uncategorized"
+}`
+          }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Claude API error:", response.status, await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const textContent = data.content?.[0]?.text;
+
+    if (!textContent) {
+      return null;
+    }
+
+    // Parse the JSON response
+    const parsed = JSON.parse(textContent);
+
+    return {
+      name: merchantName,
+      businessType: parsed.businessType,
+      description: parsed.description,
+      suggestedCategory: parsed.suggestedCategory,
+    };
+  } catch (error) {
+    console.error("AI categorization failed:", error);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   // Rate limiting
   const identifier = request.headers.get("x-forwarded-for") || "anonymous";
@@ -25,14 +91,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In a real implementation, you would search Google or another service
-    // For now, we'll use a simple heuristic based on keywords
+    // Try AI-powered categorization first
+    const aiResult = await categorizeMerchantWithAI(merchantName);
+    if (aiResult) {
+      return NextResponse.json({
+        success: true,
+        merchantInfo: aiResult,
+        source: "ai",
+      });
+    }
 
+    // Fallback to keyword-based detection
     const merchantInfo: MerchantInfo = {
       name: merchantName,
     };
 
-    // Simple keyword-based business type detection
     const lowerName = merchantName.toLowerCase();
 
     if (

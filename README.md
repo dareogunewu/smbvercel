@@ -12,11 +12,13 @@ A powerful, production-ready web application that helps small business owners co
   - 🌏 **International Banks**: DBS/POSB, HSBC, Maybank, OCBC, UOB, Standard Chartered, and more
 - **FREE Local Processing**: No paid API required - all PDF parsing happens locally on your server
 - **Automatic Bank Detection**: Intelligently identifies your bank and uses the appropriate parser
-- **Smart Categorization**: AI-powered transaction categorization using:
-  - Keyword matching
-  - MCC (Merchant Category Code) detection
-  - Web search fallback for unknown merchants
-  - Confidence scoring
+- **🤖 AI-Powered Categorization**: Intelligent transaction categorization with multiple strategies:
+  - **Claude AI** - Automatically categorizes unknown merchants (e.g., "Starbucks" → "Meals & entertainment")
+  - **Batch Processing** - Categorize up to 20 transactions at once with AI
+  - **User Learning** - Remembers your manual categorizations for future use
+  - **Keyword Matching** - Falls back to pattern matching when AI is unavailable
+  - **MCC Codes** - Industry-standard merchant category codes
+  - **Confidence Scoring** - Know how certain the categorization is
 - **Interactive Review**: Review and approve categorized transactions with merchant context
 - **Merchant Learning**: System remembers your categorization preferences
 - **Excel Export**: Generate formatted corporate business reports using ExcelJS
@@ -69,12 +71,20 @@ npm install
 pip3 install monopoly-core pdftotext pymupdf
 ```
 
-4. Run the development server:
+4. **Optional but Recommended**: Enable AI categorization:
+```bash
+cp .env.local.example .env.local
+# Edit .env.local and add your Anthropic API key:
+# ANTHROPIC_API_KEY=sk-ant-xxxxx
+```
+Get your API key from [console.anthropic.com](https://console.anthropic.com/)
+
+5. Run the development server:
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ## Production Deployment
 
