@@ -2,6 +2,39 @@ import { categories } from "./categories";
 import { CategorizationResult, MerchantRule, Transaction } from "./types";
 
 /**
+ * Use AI to categorize unknown merchants
+ */
+export async function categorizeMerchantWithAI(merchantName: string): Promise<{ category: string; confidence: number } | null> {
+  try {
+    const response = await fetch("/api/search-merchant", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ merchantName }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (data.success && data.merchantInfo?.suggestedCategory) {
+      return {
+        category: data.merchantInfo.suggestedCategory,
+        confidence: data.source === "ai" ? 0.85 : 0.7, // Higher confidence for AI vs keyword
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("AI categorization error:", error);
+    return null;
+  }
+}
+
+/**
  * Categorize a transaction using multiple strategies
  */
 export function categorizeTransaction(
