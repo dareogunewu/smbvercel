@@ -58,7 +58,16 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
     setIsGenerating(true);
 
     try {
-      exportToCSV(transactions, undefined, isMultiMonthMode);
+      // Auto-detect: if only 1 unique month, use single format regardless of toggle
+      const uniqueMonths = new Set(
+        transactions.map(t => {
+          const date = new Date(t.date);
+          return `${date.getFullYear()}-${date.getMonth()}`;
+        })
+      );
+      const isSingleMonth = uniqueMonths.size === 1;
+
+      exportToCSV(transactions, undefined, !isSingleMonth);
     } catch (error) {
       console.error("Error exporting CSV:", error);
     } finally {

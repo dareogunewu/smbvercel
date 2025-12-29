@@ -115,9 +115,9 @@ export const useStore = create<AppState>()(
     {
       name: "smbowner-storage",
       partialize: (state) => ({
+        // Only persist merchant rules - treat each session as fresh
         merchantRules: state.merchantRules,
-        transactions: state.transactions,
-        isMultiMonthMode: state.isMultiMonthMode,
+        // DO NOT persist transactions or mode - they reset on reload
       }),
     }
   )
