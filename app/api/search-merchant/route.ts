@@ -15,6 +15,9 @@ async function categorizeMerchantWithGemini(merchantName: string): Promise<Merch
   }
 
   try {
+    // Sanitize merchant name to prevent JSON injection
+    const sanitizedName = merchantName.replace(/[\n\r\t]/g, ' ').trim();
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
@@ -25,7 +28,7 @@ async function categorizeMerchantWithGemini(merchantName: string): Promise<Merch
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Categorize this merchant name: "${merchantName}"
+              text: `Categorize this merchant name: ${JSON.stringify(sanitizedName)}
 
 Return ONLY a JSON object (no markdown, no explanation):
 {
