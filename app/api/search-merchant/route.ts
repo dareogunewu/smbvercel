@@ -5,8 +5,16 @@ import { apiRateLimiter } from "@/lib/rate-limit";
 /**
  * AI-powered merchant categorization using FREE Google Gemini API
  * Get your free API key from https://aistudio.google.com/
+ *
+ * Supports multiple models with automatic fallback:
+ * - gemini-2.5-flash-lite: 10 RPM, faster (primary)
+ * - gemini-2.5-flash: 5 RPM, more accurate (fallback)
  */
-async function categorizeMerchantWithGemini(merchantName: string): Promise<MerchantInfo | null> {
+async function categorizeMerchantWithGemini(
+  merchantName: string,
+  retryCount = 0,
+  preferredModel: string = 'gemini-2.5-flash-lite'
+): Promise<MerchantInfo | null> {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -14,12 +22,16 @@ async function categorizeMerchantWithGemini(merchantName: string): Promise<Merch
     return null;
   }
 
+  const maxRetries = 2;
+  const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+  const currentModel = models.includes(preferredModel) ? preferredModel : models[0];
+
   try {
     // Sanitize merchant name to prevent JSON injection
     const sanitizedName = merchantName.replace(/[\n\r\t]/g, ' ').trim();
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: {
@@ -46,8 +58,21 @@ Return ONLY a JSON object (no markdown, no explanation):
       }
     );
 
+    // Handle rate limiting with retry and model fallback
     if (!response.ok) {
-      console.error("Gemini API error:", response.status);
+      if (response.status === 429 && retryCount < maxRetries) {
+        // Rate limit hit - try exponential backoff
+        const backoffMs = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.warn(`Rate limit hit on ${currentModel}, retrying in ${backoffMs}ms...`);
+
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+
+        // Try alternative model on retry
+        const nextModel = currentModel === models[0] ? models[1] : models[0];
+        return categorizeMerchantWithGemini(merchantName, retryCount + 1, nextModel);
+      }
+
+      console.error(`Gemini API error (${currentModel}):`, response.status);
       return null;
     }
 
@@ -67,8 +92,24 @@ Return ONLY a JSON object (no markdown, no explanation):
     }
 
     // Parse JSON response (remove markdown if present)
-    const jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const parsed = JSON.parse(jsonText);
+    let jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+    // Try to extract JSON if embedded in other text
+    const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonText = jsonMatch[0];
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error("Gemini AI JSON parse error:", parseError);
+      console.error("Raw response:", text);
+      return null;
+    }
+
+    console.log(`Successfully categorized with ${currentModel}: "${merchantName}" → "${parsed.suggestedCategory}"`);
 
     return {
       name: merchantName,
