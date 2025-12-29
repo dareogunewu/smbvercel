@@ -15,6 +15,9 @@ async function categorizeMerchantWithGemini(merchantName: string): Promise<Merch
   }
 
   try {
+    // Sanitize merchant name to prevent JSON injection
+    const sanitizedName = merchantName.replace(/[\n\r\t]/g, ' ').trim();
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
@@ -25,7 +28,7 @@ async function categorizeMerchantWithGemini(merchantName: string): Promise<Merch
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Categorize this merchant name: "${merchantName}"
+              text: `Categorize this merchant name: ${JSON.stringify(sanitizedName)}
 
 Return ONLY a JSON object (no markdown, no explanation):
 {
@@ -52,12 +55,27 @@ Return ONLY a JSON object (no markdown, no explanation):
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
+      console.error("Gemini API: No text in response");
       return null;
     }
 
     // Parse JSON response (remove markdown if present)
-    const jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const parsed = JSON.parse(jsonText);
+    let jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+    // Try to extract JSON if embedded in other text
+    const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonText = jsonMatch[0];
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error("Gemini AI JSON parse error:", parseError);
+      console.error("Raw response:", text);
+      return null;
+    }
 
     return {
       name: merchantName,
