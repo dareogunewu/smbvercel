@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import { getAllCategoryNames } from "@/lib/categories";
 import { extractMerchantName, categorizeMerchantWithAI } from "@/lib/categorization";
 import { formatCurrency } from "@/lib/utils";
+import { aiQueue } from "@/lib/ai-queue";
 import {
   Card,
   CardContent,
@@ -41,6 +42,8 @@ export function CategoryReview({
   const [rememberMerchants, setRememberMerchants] = useState<Record<string, boolean>>({});
   const [rememberAll, setRememberAll] = useState<boolean>(false);
   const [loadingAI, setLoadingAI] = useState<Record<string, boolean>>({});
+  const [categorizingAll, setCategorizingAll] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   const categories = getAllCategoryNames();
 
@@ -72,6 +75,42 @@ export function CategoryReview({
     } finally {
       setLoadingAI(prev => ({ ...prev, [transaction.id]: false }));
     }
+  };
+
+  const handleCategorizeAll = async () => {
+    setCategorizingAll(true);
+    setBatchProgress({ current: 0, total: reviewTransactions.length });
+
+    let completed = 0;
+
+    for (const transaction of reviewTransactions) {
+      // Skip if already categorized
+      if (selectedCategories[transaction.id]) {
+        completed++;
+        setBatchProgress({ current: completed, total: reviewTransactions.length });
+        continue;
+      }
+
+      const merchantName = extractMerchantName(transaction.description);
+
+      try {
+        // Use queue to respect rate limits
+        const data = await aiQueue.categorize(merchantName);
+
+        if (data.success && data.merchantInfo?.suggestedCategory) {
+          handleCategoryChange(transaction.id, data.merchantInfo.suggestedCategory);
+          console.log(`Batch AI: "${merchantName}" → "${data.merchantInfo.suggestedCategory}" (${data.source})`);
+        }
+      } catch (error) {
+        console.error(`Failed to categorize ${merchantName}:`, error);
+      }
+
+      completed++;
+      setBatchProgress({ current: completed, total: reviewTransactions.length });
+    }
+
+    setCategorizingAll(false);
+    setBatchProgress({ current: 0, total: 0 });
   };
 
   const handleApproveAll = () => {
@@ -234,12 +273,41 @@ export function CategoryReview({
           </div>
         )}
 
+        {/* Batch AI Progress */}
+        {categorizingAll && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-purple-800 font-medium">
+                ✨ AI Categorizing... {batchProgress.current} / {batchProgress.total}
+              </p>
+              <span className="text-xs text-purple-600">
+                {Math.round((batchProgress.current / batchProgress.total) * 100)}%
+              </span>
+            </div>
+            <div className="w-full bg-purple-200 rounded-full h-2">
+              <div
+                className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex gap-2 pt-2">
           <Button
+            onClick={handleCategorizeAll}
+            disabled={categorizingAll || allCategorized}
+            variant="outline"
+            className="flex-1"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            {categorizingAll ? 'Categorizing...' : 'AI Categorize All'}
+          </Button>
+          <Button
             onClick={handleApproveAll}
             disabled={!allCategorized}
-            className="w-full"
+            className="flex-1"
           >
             <Check className="h-4 w-4 mr-2" />
             Approve All ({reviewTransactions.length} items)
