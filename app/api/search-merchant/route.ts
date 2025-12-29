@@ -3,8 +3,77 @@ import { MerchantInfo } from "@/lib/types";
 import { apiRateLimiter } from "@/lib/rate-limit";
 
 /**
+ * AI-powered merchant categorization using FREE Google Gemini API
+ * Get your free API key from https://aistudio.google.com/
+ */
+async function categorizeMerchantWithGemini(merchantName: string): Promise<MerchantInfo | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    console.warn("GEMINI_API_KEY not configured - falling back to pattern matching");
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Categorize this merchant name: "${merchantName}"
+
+Return ONLY a JSON object (no markdown, no explanation):
+{
+  "businessType": "brief type (e.g., Coffee Shop, Gas Station)",
+  "description": "one sentence",
+  "suggestedCategory": "EXACTLY ONE of: Advertising, Auto, Bank service charges, Business Cell phone, Car wash, Charitable donation, Computer exp, Equipment rental, Fees & Charges, Gas, Grocery, Insurance, Interest expense, Internet, Meals & entertainment, Office utilities, Parking, Professional Services, Repairs/ maintenance, Shopping, Spotify, Travel, Uncategorized"
+}`
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 200,
+          }
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Gemini API error:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      return null;
+    }
+
+    // Parse JSON response (remove markdown if present)
+    const jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(jsonText);
+
+    return {
+      name: merchantName,
+      businessType: parsed.businessType,
+      description: parsed.description,
+      suggestedCategory: parsed.suggestedCategory,
+    };
+  } catch (error) {
+    console.error("Gemini AI categorization failed:", error);
+    return null;
+  }
+}
+
+/**
  * FREE intelligent merchant categorization using enhanced pattern matching
- * No API keys, no costs - 100% free
+ * Fallback when AI is not configured
  */
 function categorizeMerchantIntelligently(merchantName: string): MerchantInfo {
   const lowerName = merchantName.toLowerCase();
@@ -110,7 +179,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use FREE intelligent categorization
+    // Try FREE Google Gemini AI first (if API key configured)
+    const aiResult = await categorizeMerchantWithGemini(merchantName);
+    if (aiResult) {
+      return NextResponse.json({
+        success: true,
+        merchantInfo: aiResult,
+        source: "gemini_ai",
+      });
+    }
+
+    // Fallback to FREE intelligent pattern matching
     const merchantInfo = categorizeMerchantIntelligently(merchantName);
 
     return NextResponse.json({
