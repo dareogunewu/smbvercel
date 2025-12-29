@@ -1,12 +1,15 @@
-# SMB Owner - Bank Statement Analyzer
+# SMB Owner - Vercel Edition (RBC Only)
 
-A powerful, production-ready web application that helps small business owners convert PDF bank statements to CSV, automatically categorize transactions, and generate corporate business reports.
+A production-ready web application for RBC (Royal Bank of Canada) customers to convert PDF bank statements to CSV, automatically categorize transactions, and generate corporate business reports.
 
-**Live Demo:** [https://smbowner.vercel.app/](https://smbowner.vercel.app/)
+**Note:** This is the Vercel-optimized version that supports RBC statements only. For multi-bank support (17+ banks), see [smbowner (Railway)](https://github.com/dareogunewu/smbowner).
 
 ## Features
 
-- **PDF Upload & Conversion**: Drag-and-drop PDF bank statements with seamless conversion to CSV
+- **RBC PDF Upload & Conversion**: Drag-and-drop RBC bank statements with FREE local parsing
+  - Credit Card (Visa)
+  - Chequing
+  - Savings
 - **Smart Categorization**: AI-powered transaction categorization using:
   - Keyword matching
   - MCC (Merchant Category Code) detection
@@ -17,7 +20,7 @@ A powerful, production-ready web application that helps small business owners co
 - **Excel Export**: Generate formatted corporate business reports using ExcelJS
 - **Persistent Storage**: Your merchant rules are saved locally for future use
 - **Security Features**:
-  - Server-side API key management
+  - No API keys needed - 100% local processing
   - Rate limiting on all API routes
   - Input validation and file size limits
   - Error boundaries for graceful failure handling
@@ -29,172 +32,121 @@ A powerful, production-ready web application that helps small business owners co
 - **Tailwind CSS** - Utility-first styling
 - **shadcn/ui** - Beautiful, accessible components
 - **Zustand** - Lightweight state management
-- **ExcelJS** - Secure Excel file generation (replaced xlsx for security)
+- **ExcelJS** - Secure Excel file generation
 - **Zod** - Schema validation
+- **Python** - RBC statement parser (pdfminer.six)
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+ and npm
-- API key from [bankstatementconverter.com](https://bankstatementconverter.com/)
+- Python 3.8+ (for PDF parsing)
 
 ### Local Development
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/dareogunewu/smbowner.git
-cd smbowner
+git clone https://github.com/dareogunewu/smbvercel.git
+cd smbvercel
 ```
 
-2. Install dependencies:
+2. Install Node.js dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+3. Install Python dependencies:
+```bash
+pip3 install -r requirements.txt
+```
+
+4. Copy the environment file (optional - no API keys needed):
 ```bash
 cp .env.local.example .env.local
 ```
 
-Edit `.env.local` and add your API key:
-```env
-# IMPORTANT: No NEXT_PUBLIC_ prefix - server-side only for security
-BANK_STATEMENT_CONVERTER_API_KEY=your_actual_api_key
-```
-
-4. Run the development server:
+5. Start the development server:
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-## Production Deployment
+## Deployment
 
-### Deploy to Vercel (Recommended)
+### Deploy to Vercel
 
-1. Push your code to GitHub
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/dareogunewu/smbvercel)
 
-2. Import project in Vercel dashboard
+1. Push to GitHub
+2. Import to Vercel
+3. Deploy - no environment variables needed!
 
-3. Configure environment variables in Vercel:
-   - Go to Project Settings → Environment Variables
-   - Add `BANK_STATEMENT_CONVERTER_API_KEY` with your API key
-   - **Important:** Use `BANK_STATEMENT_CONVERTER_API_KEY` (without `NEXT_PUBLIC_` prefix)
+Vercel will automatically:
+- Install Node.js dependencies
+- Install Python dependencies from requirements.txt
+- Build and deploy your application
 
-4. Deploy!
+## RBC Statement Support
 
-### Environment Variables
+This version uses the [rbc-statement-to-csv](https://github.com/mindcruzer/rbc-statement-to-csv) converter, which supports:
 
-| Variable | Description | Required | Example |
-|----------|-------------|----------|---------|
-| `BANK_STATEMENT_CONVERTER_API_KEY` | API key for PDF conversion service | Yes | `api-xxxxx` |
+### Credit Card (Visa)
+- Transaction Date
+- Posting Date
+- Description
+- Credit/Debit amounts
+- Foreign Currency support
+- Exchange Rate
 
-**Security Note:** Never use the `NEXT_PUBLIC_` prefix for API keys. This exposes them in the client-side bundle.
-
-### Manual Deployment
-
-```bash
-# Build for production
-npm run build
-
-# Start production server
-npm start
-```
-
-## Production Checklist
-
-- [x] API keys secured server-side
-- [x] Rate limiting implemented
-- [x] Input validation and sanitization
-- [x] File upload size limits (10MB)
-- [x] Error boundaries
-- [x] ESLint enabled and passing
-- [x] Security vulnerabilities fixed
-- [x] Privacy policy and terms of service
-- [x] Production build tested
-
-## Usage
-
-1. **Upload PDF**: Drag and drop your PDF bank statement or click to select
-2. **Convert**: The app automatically converts the PDF to CSV securely on the server
-3. **Review**: Check the categorized transactions - low confidence items are highlighted
-4. **Approve**: Accept suggested categories or modify as needed
-5. **Export**: Generate your corporate business report in Excel format
+### Chequing & Savings
+- Date
+- Description
+- Withdrawals
+- Deposits
+- Balance
 
 ## Project Structure
 
 ```
-smbowner/
-├── app/
-│   ├── api/              # API routes with rate limiting
-│   │   ├── convert/      # PDF to CSV conversion
-│   │   ├── categorize/   # Transaction categorization
-│   │   └── search-merchant/ # Merchant lookup
-│   ├── privacy/          # Privacy policy page
-│   ├── terms/            # Terms of service page
-│   ├── layout.tsx        # Root layout with error boundary
-│   └── page.tsx          # Main application page
-├── components/
-│   ├── ui/               # shadcn/ui components
-│   ├── ErrorBoundary.tsx # Error handling component
-│   └── ...               # Custom components
-├── lib/
-│   ├── categories.ts     # Category database
-│   ├── categorization.ts # Categorization engine
-│   ├── rate-limit.ts     # Rate limiting logic
-│   ├── store.ts          # Zustand store
-│   ├── types.ts          # TypeScript types
-│   └── utils.ts          # Utility functions
-└── public/               # Static assets
+smbvercel/
+├── app/                    # Next.js App Router
+│   ├── api/               # API routes
+│   │   └── convert/       # PDF conversion endpoint
+│   ├── layout.tsx         # Root layout
+│   └── page.tsx           # Home page
+├── api/                   # Python API functions
+│   └── parse_rbc.py       # RBC PDF parser
+├── components/            # React components
+├── lib/                   # Utilities and helpers
+├── requirements.txt       # Python dependencies
+└── vercel.json           # Vercel configuration
 ```
 
 ## Security
 
-- **API Keys**: Stored server-side only, never exposed to client
-- **Rate Limiting**: 5 uploads/minute, 10 API requests/minute per IP
-- **Input Validation**: File type and size validation
-- **Error Handling**: Graceful error boundaries prevent crashes
-- **Dependencies**: Regular security audits, no known vulnerabilities
+- ✅ No third-party APIs - all processing is local
+- ✅ No API keys to manage
+- ✅ Rate limiting (5 uploads/min)
+- ✅ CSRF protection
+- ✅ File validation (type, size)
+- ✅ Error boundaries
+- ✅ Zero vulnerabilities (npm audit clean)
 
-## Performance
+## For Multi-Bank Support
 
-- **Bundle Size**: ~241 KB first load
-- **Static Generation**: Pre-rendered pages for optimal performance
-- **Server-Side Processing**: PDF conversion happens server-side for security
+If you need support for banks other than RBC, check out the [Railway version](https://github.com/dareogunewu/smbowner) which supports 17+ banks:
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run linting: `npm run lint`
-5. Build to verify: `npm run build`
-6. Submit a pull request
+**Canadian**: RBC, TD, BMO, Scotiabank, CIBC
+**American**: Bank of America, Chase, Citibank, Capital One, Wells Fargo, US Bank
+**European**: N26, Revolut, and more
 
 ## License
 
-MIT
+MIT License - See LICENSE file for details
 
-## Support
+## Credits
 
-For issues or questions:
-- Open an issue on [GitHub](https://github.com/dareogunewu/smbowner/issues)
-- Review our [Privacy Policy](/privacy)
-- Read our [Terms of Service](/terms)
-
-## Changelog
-
-### v1.0.0 (2025-12-24)
-- ✅ Initial production release
-- ✅ Secure API key management
-- ✅ Rate limiting on all routes
-- ✅ Security vulnerability fixes (replaced xlsx with exceljs)
-- ✅ Error boundaries
-- ✅ Privacy policy and terms
-- ✅ Production deployment to Vercel
-
----
-
-Built with ❤️ for small business owners
+- RBC Parser: Based on [rbc-statement-to-csv](https://github.com/mindcruzer/rbc-statement-to-csv) by mindcruzer
+- Built with [Next.js](https://nextjs.org/), [shadcn/ui](https://ui.shadcn.com/), and [Vercel](https://vercel.com/)

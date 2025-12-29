@@ -1,0 +1,5 @@
+# Python dependencies for RBC PDF parsing
+# Pure Python libraries - no C++ dependencies (Vercel compatible)
+
+pdfminer.six==20221105
+python-dateutil==2.9.0
