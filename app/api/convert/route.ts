@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadRateLimiter } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
-import { exec } from "child_process";
-import { promisify } from "util";
-import { writeFile, unlink } from "fs/promises";
-import path from "path";
-import { tmpdir } from "os";
-
-const execAsync = promisify(exec);
+import { parseRBCStatement } from "@/lib/rbc-parser";
 
 // File size limit: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -66,58 +60,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use local Python RBC parser for PDF conversion
-    let parsedData: {
-      success: boolean;
-      bank?: string;
-      statement_type?: string;
-      transactions?: Array<{ date: string; description: string; amount: number; type: string }>;
-      error?: string;
-      metadata?: {
-        total_transactions: number;
-        parser: string;
-      };
-    };
+    // Use JavaScript RBC parser for PDF conversion (Vercel-compatible)
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const parsedData = await parseRBCStatement(fileBuffer);
 
-    try {
-      // Save uploaded file to temporary location
-      const fileBuffer = Buffer.from(await file.arrayBuffer());
-      const tempFilePath = path.join(tmpdir(), `statement_${Date.now()}.pdf`);
-      await writeFile(tempFilePath, fileBuffer);
-
-      // Get the path to the Python script
-      const scriptPath = path.join(process.cwd(), "api", "parse_rbc.py");
-
-      // Execute Python parser
-      const { stdout, stderr } = await execAsync(
-        `python3 "${scriptPath}" "${tempFilePath}"`
-      );
-
-      if (stderr) {
-        console.warn("Python parser warnings:", stderr);
-      }
-
-      // Parse the JSON output
-      parsedData = JSON.parse(stdout);
-
-      // Clean up temporary file
-      await unlink(tempFilePath).catch(() => {
-        // Ignore cleanup errors
-      });
-
-      if (!parsedData.success) {
-        throw new Error(parsedData.error || "Failed to parse PDF");
-      }
-
-      console.log(`Successfully parsed RBC PDF - Type: ${parsedData.statement_type}, Transactions: ${parsedData.transactions?.length}`);
-    } catch (error) {
-      console.error("Error parsing PDF with RBC parser:", error);
-      throw new Error(
-        error instanceof Error
-          ? `PDF parsing error: ${error.message}`
-          : "Failed to parse PDF. Please try again."
-      );
+    if (!parsedData.success) {
+      throw new Error(parsedData.error || "Failed to parse PDF");
     }
+
+    console.log(`Successfully parsed RBC PDF - Type: ${parsedData.metadata?.statement_type}, Transactions: ${parsedData.transactions?.length}`);
 
     // Convert parsed data to transaction format
     interface ParsedTransaction {
@@ -137,7 +88,7 @@ export async function POST(request: NextRequest) {
           date: txn.date,
           description: txn.description,
           amount: txn.amount,
-          type: txn.type,
+          // type removed - not in Transaction interface
         });
       });
     }
@@ -147,7 +98,7 @@ export async function POST(request: NextRequest) {
       transactions,
       count: transactions.length,
       bank: parsedData.bank,
-      statement_type: parsedData.statement_type,
+      statement_type: parsedData.metadata?.statement_type,
       metadata: parsedData.metadata,
     });
   } catch (error) {
