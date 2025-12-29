@@ -13,8 +13,6 @@ const nextConfig: NextConfig = {
   compress: true,
   // Production optimizations
   reactStrictMode: true,
-  // Security: SWC minification
-  swcMinify: true,
 };
 
 export default nextConfig;
