@@ -57,10 +57,11 @@ def parse_statement(pdf_path: str, output_format: str = "json") -> dict:
             # Convert to list of dicts
             transaction_list = []
             for txn in transactions:
+                # Transaction objects are Pydantic models, use attribute access
                 transaction_list.append({
-                    "date": str(txn.get("date", "")),
-                    "description": txn.get("description", ""),
-                    "amount": float(txn.get("amount", 0)),
+                    "date": str(getattr(txn, "date", "")),
+                    "description": getattr(txn, "description", ""),
+                    "amount": float(getattr(txn, "amount", 0)),
                 })
 
             return {
