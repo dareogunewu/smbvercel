@@ -4,7 +4,7 @@ import { CategorizationResult, MerchantRule, Transaction } from "./types";
 /**
  * Use AI to categorize unknown merchants
  */
-export async function categorizeMerchantWithAI(merchantName: string): Promise<{ category: string; confidence: number } | null> {
+export async function categorizeMerchantWithAI(merchantName: string): Promise<{ category: string; confidence: number; source: string } | null> {
   try {
     const response = await fetch("/api/search-merchant", {
       method: "POST",
@@ -23,7 +23,8 @@ export async function categorizeMerchantWithAI(merchantName: string): Promise<{ 
     if (data.success && data.merchantInfo?.suggestedCategory) {
       return {
         category: data.merchantInfo.suggestedCategory,
-        confidence: data.source === "ai" ? 0.85 : 0.7, // Higher confidence for AI vs keyword
+        confidence: data.source === "gemini_ai" ? 0.95 : 0.75, // Higher confidence for AI vs pattern matching
+        source: data.source === "gemini_ai" ? "ai" : "pattern_matching",
       };
     }
 
