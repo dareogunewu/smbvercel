@@ -40,7 +40,7 @@ Return ONLY a JSON object (no markdown, no explanation):
           }],
           generationConfig: {
             temperature: 0.1,
-            maxOutputTokens: 200,
+            maxOutputTokens: 500,
           }
         }),
       }
@@ -53,8 +53,16 @@ Return ONLY a JSON object (no markdown, no explanation):
 
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const finishReason = data.candidates?.[0]?.finishReason;
 
     if (!text) {
+      console.error("Gemini API: No text in response");
+      return null;
+    }
+
+    // Check if response was truncated
+    if (finishReason === 'MAX_TOKENS') {
+      console.warn("Gemini API: Response truncated due to max tokens limit");
       return null;
     }
 
