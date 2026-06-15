@@ -5,7 +5,11 @@ import { getAllCategoryNames } from "@/lib/categories";
 import { Transaction, MerchantRule } from "@/lib/types";
 import { apiRateLimiter } from "@/lib/rate-limit";
 
-const client = new Anthropic();
+let client: Anthropic | null = null;
+function getClient() {
+  if (!client) client = new Anthropic();
+  return client;
+}
 const CHUNK_SIZE = 40;
 const enc = new TextEncoder();
 
@@ -77,7 +81,7 @@ Transactions:
 ${chunk.map((t) => `{"id":"${t.id}","description":${JSON.stringify(t.description)},"amount":${t.amount}}`).join("\n")}`;
 
           try {
-            const message = await client.messages.create({
+            const message = await getClient().messages.create({
               model: "claude-haiku-4-5-20251001",
               max_tokens: 2048,
               messages: [{ role: "user", content: prompt }],
