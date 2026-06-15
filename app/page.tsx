@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Component, ReactNode } from "react";
 import { useStore } from "@/lib/store";
-import { batchCategorizeTransactions } from "@/lib/categorization";
 import { FileUpload } from "@/components/FileUpload";
 import { TransactionTable } from "@/components/TransactionTable";
 import { CategoryReview } from "@/components/CategoryReview";
@@ -11,8 +10,45 @@ import { LoginPage } from "@/components/LoginPage";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Trash2, Upload as UploadIcon, Calendar, CalendarDays, Check, LogOut } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Upload as UploadIcon,
+  Calendar,
+  CalendarDays,
+  Check,
+  LogOut,
+  RotateCcw,
+  Clock,
+} from "lucide-react";
 import { isAuthenticated, clearAuth } from "@/lib/auth";
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6 text-center text-red-800">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+            <p className="font-semibold">Something went wrong</p>
+            <p className="text-sm mt-1">{(this.state.error as Error).message}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => this.setState({ error: null })}
+            >
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function Home() {
   const {
@@ -25,44 +61,49 @@ export default function Home() {
     merchantRules,
     isMultiMonthMode,
     setMultiMonthMode,
+    fileName,
+    lastLoadedAt,
   } = useStore();
 
   const [showReview, setShowReview] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Check authentication on mount
   useEffect(() => {
     setIsLoggedIn(isAuthenticated());
   }, []);
 
-  // Categorize transactions when they're loaded
+  // Categorize via API (enables AI categorization via Claude Haiku)
   useEffect(() => {
     if (transactions.length > 0 && uploadStatus === "complete") {
-      // Check if transactions need categorization
       const needsCategorization = transactions.some((t) => !t.category);
-
-      if (needsCategorization) {
-        setUploadStatus("processing");
-
-        // Categorize transactions
-        const categorized = batchCategorizeTransactions(
-          transactions,
-          merchantRules
-        );
-
-        setTransactions(categorized);
-
-        // Check if any need review
-        const needsReview = categorized.some((t) => t.needsReview);
-        if (needsReview) {
-          setShowReview(true);
-        }
-
-        setUploadStatus("complete");
+      if (!needsCategorization) {
+        const needsReview = transactions.some((t) => t.needsReview);
+        if (needsReview) setShowReview(true);
+        return;
       }
+
+      setUploadStatus("processing");
+
+      fetch("/api/categorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactions, merchantRules }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success) {
+            setTransactions(data.transactions);
+            const needsReview = data.transactions.some(
+              (t: typeof transactions[0]) => t.needsReview
+            );
+            if (needsReview) setShowReview(true);
+          }
+          setUploadStatus("complete");
+        })
+        .catch(() => setUploadStatus("complete"));
     }
-  }, [transactions, uploadStatus, merchantRules, setTransactions, setUploadStatus]);
+  }, [transactions.length, uploadStatus]);
 
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out? Your session will end.")) {
@@ -71,43 +112,34 @@ export default function Home() {
     }
   };
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-  };
-
   const needsReview = transactions.filter((t) => t.needsReview).length;
   const categorized = transactions.filter(
     (t) => t.category && t.category !== "Uncategorized"
   ).length;
 
-  // Show login page if not authenticated
+  const sessionAge = lastLoadedAt
+    ? Math.round((Date.now() - lastLoadedAt) / 60000)
+    : null;
+
   if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
   }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* Page Title */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Dashboard
-          </h1>
-          <p className="text-gray-600">
-            Upload bank statements, categorize transactions, and generate reports
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Dashboard</h1>
+          <p className="text-gray-600 text-sm">
+            Upload bank statements, categorize transactions, generate reports
           </p>
         </div>
-        <Button
-          onClick={handleLogout}
-          variant="outline"
-          className="gap-2"
-        >
+        <Button onClick={handleLogout} variant="outline" size="sm" className="gap-2">
           <LogOut className="h-4 w-4" />
           Logout
         </Button>
       </div>
 
-      {/* Error Message */}
       {errorMessage && (
         <Card className="mb-6 border-red-200 bg-red-50">
           <CardContent className="pt-6">
@@ -119,29 +151,37 @@ export default function Home() {
         </Card>
       )}
 
-      {/* Status Banner */}
       {transactions.length > 0 && (
         <Card className="mb-6 border-primary/20 bg-primary/5">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <CheckCircle2 className="h-6 w-6 text-primary" />
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-primary shrink-0" />
                 <div>
-                  <p className="font-semibold text-lg">
-                    {transactions.length} transactions loaded
+                  <p className="font-semibold">
+                    {transactions.length} transactions
+                    {fileName && (
+                      <span className="text-muted-foreground font-normal"> from {fileName}</span>
+                    )}
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
                     {categorized} categorized
                     {needsReview > 0 && ` • ${needsReview} need review`}
+                    {sessionAge !== null && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {sessionAge < 1 ? "just now" : `${sessionAge}m ago`}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 {uploadStatus === "processing" && (
-                  <Badge variant="secondary">Processing...</Badge>
+                  <Badge variant="secondary">AI categorizing...</Badge>
                 )}
                 {uploadStatus === "complete" && categorized === transactions.length && (
-                  <Badge variant="success">All categorized!</Badge>
+                  <Badge variant="success">All categorized</Badge>
                 )}
                 {needsReview > 0 && (
                   <Badge variant="warning">{needsReview} to review</Badge>
@@ -152,32 +192,29 @@ export default function Home() {
         </Card>
       )}
 
-      {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Upload and Review */}
         <div className="lg:col-span-2 space-y-6">
-          {/* File Upload */}
           {transactions.length === 0 && <FileUpload />}
 
           {/* Mode Toggle */}
           <Card className="border-2 border-primary/20">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
+            <CardContent className="pt-5 pb-5">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="font-semibold text-sm mb-1">Upload Mode</h3>
+                  <h3 className="font-semibold text-sm mb-0.5">Upload Mode</h3>
                   <p className="text-xs text-muted-foreground">
                     {isMultiMonthMode
-                      ? "Multiple statements will be combined for year-end reporting"
-                      : "Each upload replaces previous data (single statement)"}
+                      ? "Multiple statements combined for year-end reporting"
+                      : "Each upload replaces previous data"}
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0">
                   <Button
                     onClick={() => setMultiMonthMode(false)}
                     variant={!isMultiMonthMode ? "default" : "outline"}
                     size="sm"
                   >
-                    <Calendar className="h-4 w-4 mr-2" />
+                    <Calendar className="h-4 w-4 mr-1.5" />
                     Single
                   </Button>
                   <Button
@@ -185,7 +222,7 @@ export default function Home() {
                     variant={isMultiMonthMode ? "default" : "outline"}
                     size="sm"
                   >
-                    <CalendarDays className="h-4 w-4 mr-2" />
+                    <CalendarDays className="h-4 w-4 mr-1.5" />
                     Multi-Month
                   </Button>
                 </div>
@@ -193,97 +230,92 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {/* Upload Another + Finish Session buttons */}
           {transactions.length > 0 && (
+            <div className="flex gap-3">
+              {isMultiMonthMode && (
+                <Button
+                  onClick={() => setShowUpload(!showUpload)}
+                  variant="outline"
+                  className="flex-1"
+                  size="sm"
+                >
+                  <UploadIcon className="h-4 w-4 mr-2" />
+                  Upload Another Statement
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  if (confirm("Clear all transactions and start fresh?")) {
+                    clearTransactions();
+                    setShowUpload(false);
+                    setShowReview(false);
+                  }
+                }}
+                variant="outline"
+                size="sm"
+                className={isMultiMonthMode ? "" : "flex-1"}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                New Statement
+              </Button>
+              {!isMultiMonthMode && (
+                <Button
+                  onClick={() => {
+                    if (confirm("Finish this session?")) {
+                      clearTransactions();
+                      setShowReview(false);
+                    }
+                  }}
+                  size="sm"
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Finish Session
+                </Button>
+              )}
+            </div>
+          )}
+
+          {showUpload && isMultiMonthMode && (
+            <FileUpload />
+          )}
+
+          {showReview && needsReview > 0 && (
+            <ErrorBoundary>
+              <CategoryReview
+                transactions={transactions}
+                onComplete={() => setShowReview(false)}
+              />
+            </ErrorBoundary>
+          )}
+
+          <ErrorBoundary>
+            {transactions.length > 0 && (
+              <TransactionTable transactions={transactions} />
+            )}
+          </ErrorBoundary>
+        </div>
+
+        <div className="space-y-4">
+          <ErrorBoundary>
+            <ReportGenerator transactions={transactions} />
+          </ErrorBoundary>
+
+          {transactions.length === 0 && (
             <Card>
-              <CardContent className="pt-6">
-                <div className="flex gap-3">
-                  {isMultiMonthMode && (
-                    <Button
-                      onClick={() => setShowUpload(!showUpload)}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      <UploadIcon className="h-4 w-4 mr-2" />
-                      Upload Another Statement
-                    </Button>
-                  )}
-                  <Button
-                    onClick={() => {
-                      const message = isMultiMonthMode
-                        ? "Finish this session and start a new one? Current data will be cleared."
-                        : "Finish this session and start a new one? Current data will be cleared.";
-                      if (confirm(message)) {
-                        clearTransactions();
-                        setShowUpload(false);
-                      }
-                    }}
-                    variant="default"
-                    className={isMultiMonthMode ? "bg-green-600 hover:bg-green-700" : "flex-1 bg-green-600 hover:bg-green-700"}
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Finish Session
-                  </Button>
-                </div>
-                {showUpload && isMultiMonthMode && (
-                  <div className="mt-4">
-                    <FileUpload />
-                  </div>
-                )}
+              <CardContent className="pt-6 space-y-3">
+                <h3 className="font-semibold">How it works</h3>
+                <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                  <li>Upload your PDF bank statement</li>
+                  <li>AI categorizes every transaction automatically</li>
+                  <li>Review & correct anything uncertain</li>
+                  <li>Export your corporate business report</li>
+                </ol>
               </CardContent>
             </Card>
           )}
-
-          {/* Category Review */}
-          {showReview && needsReview > 0 && (
-            <CategoryReview
-              transactions={transactions}
-              onComplete={() => setShowReview(false)}
-            />
-          )}
-
-          {/* Transactions Table */}
-          {transactions.length > 0 && (
-            <TransactionTable transactions={transactions} />
-          )}
-        </div>
-
-        {/* Right Column - Report Generator */}
-        <div className="space-y-6">
-          {transactions.length > 0 && (
-            <ReportGenerator transactions={transactions} />
-          )}
-
-          {/* Help Card */}
-          <Card>
-            <CardContent className="pt-6 space-y-3">
-              <h3 className="font-semibold">How it works</h3>
-              <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                <li>Upload your PDF bank statement</li>
-                <li>We convert it to CSV and categorize transactions</li>
-                <li>Review and approve any uncertain categories</li>
-                <li>Generate your corporate business report</li>
-              </ol>
-            </CardContent>
-          </Card>
-
-          {/* Info Card */}
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">Secure Processing</p>
-                  <p className="text-xs">
-                    Your bank statements are processed securely. PDF conversion happens server-side to protect your data.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
-
     </div>
   );
 }

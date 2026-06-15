@@ -9,22 +9,16 @@ import { tmpdir } from "os";
 
 const execAsync = promisify(exec);
 
-// File size limit: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
-  // CSRF Protection - Validate Origin
   const origin = request.headers.get("origin");
   const host = request.headers.get("host");
 
   if (!validateOrigin(origin, host)) {
-    return NextResponse.json(
-      { error: "Invalid request origin" },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
   }
 
-  // Rate limiting
   const identifier = request.headers.get("x-forwarded-for") || "anonymous";
   const rateLimitResult = uploadRateLimiter.check(identifier);
 
@@ -50,7 +44,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Validate file type
     if (file.type !== "application/pdf") {
       return NextResponse.json(
         { error: "Invalid file type. Only PDF files are accepted." },
@@ -58,7 +51,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB.` },
@@ -66,7 +58,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use local Python parser for PDF conversion
     let parsedData: {
       success: boolean;
       bank?: string;
@@ -80,36 +71,24 @@ export async function POST(request: NextRequest) {
     };
 
     try {
-      // Save uploaded file to temporary location
       const fileBuffer = Buffer.from(await file.arrayBuffer());
       const tempFilePath = path.join(tmpdir(), `statement_${Date.now()}.pdf`);
       await writeFile(tempFilePath, fileBuffer);
 
-      // Get the path to the Python script
       const scriptPath = path.join(process.cwd(), "scripts", "parse_statement.py");
-
-      // Execute Python parser
-      const { stdout, stderr } = await execAsync(
-        `python3 "${scriptPath}" "${tempFilePath}"`
-      );
+      const { stdout, stderr } = await execAsync(`python3 "${scriptPath}" "${tempFilePath}"`);
 
       if (stderr) {
         console.warn("Python parser warnings:", stderr);
       }
 
-      // Parse the JSON output
       parsedData = JSON.parse(stdout);
 
-      // Clean up temporary file
-      await unlink(tempFilePath).catch(() => {
-        // Ignore cleanup errors
-      });
+      await unlink(tempFilePath).catch(() => {});
 
       if (!parsedData.success) {
         throw new Error(parsedData.error || "Failed to parse PDF");
       }
-
-      console.log(`Successfully parsed PDF - Bank: ${parsedData.bank}, Transactions: ${parsedData.transactions?.length}`);
     } catch (error) {
       console.error("Error parsing PDF with local parser:", error);
       throw new Error(
@@ -119,45 +98,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert parsed data to transaction format
-    interface ParsedTransaction {
-      id: string;
-      date?: string;
-      description?: string;
-      amount?: number;
-      type?: string;
-    }
-
-    const transactions: ParsedTransaction[] = [];
-
-    if (parsedData.transactions) {
-      parsedData.transactions.forEach((txn, index) => {
-        const amount = txn.amount;
-        const type = amount >= 0 ? "credit" : "debit";
-
-        transactions.push({
-          id: `txn_${Date.now()}_${index}`,
-          date: txn.date,
-          description: txn.description,
-          amount: amount,
-          type: type,
-        });
-      });
-    }
+    const transactions = (parsedData.transactions ?? []).map((txn, index) => ({
+      id: crypto.randomUUID(),
+      date: txn.date,
+      description: txn.description,
+      amount: txn.amount,
+      type: (txn.amount >= 0 ? "credit" : "debit") as "debit" | "credit",
+    }));
 
     return NextResponse.json({
       success: true,
       transactions,
       count: transactions.length,
-      bank: parsedData.bank, // Include detected bank name
-      metadata: parsedData.metadata, // Include additional metadata
+      bank: parsedData.bank,
+      metadata: parsedData.metadata,
     });
   } catch (error) {
     console.error("Error converting PDF:", error);
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Failed to convert PDF",
-      },
+      { error: error instanceof Error ? error.message : "Failed to convert PDF" },
       { status: 500 }
     );
   }

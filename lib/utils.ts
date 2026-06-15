@@ -42,27 +42,66 @@ export function formatDate(date: Date | string): string {
 }
 
 /**
- * Parse CSV string to array of objects
+ * Parse CSV string to array of objects (handles quoted fields with commas)
  */
 export function parseCSV(csvText: string): Record<string, string>[] {
-  const lines = csvText.trim().split("\n");
-  if (lines.length < 2) return [];
+  const rows = parseCSVRows(csvText);
+  if (rows.length < 2) return [];
 
-  const headers = lines[0].split(",").map((h) => h.trim());
-  const data: Record<string, string>[] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(",").map((v) => v.trim());
+  const headers = rows[0].map((h) => h.trim().toLowerCase());
+  return rows.slice(1).map((values) => {
     const row: Record<string, string> = {};
-
     headers.forEach((header, index) => {
-      row[header] = values[index] || "";
+      row[header] = values[index]?.trim() ?? "";
     });
+    return row;
+  });
+}
 
-    data.push(row);
+function parseCSVRows(csvText: string): string[][] {
+  const rows: string[][] = [];
+  let current = "";
+  let inQuotes = false;
+  let row: string[] = [];
+
+  for (let i = 0; i < csvText.length; i++) {
+    const ch = csvText[i];
+    if (ch === '"') {
+      if (inQuotes && csvText[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === "," && !inQuotes) {
+      row.push(current);
+      current = "";
+    } else if ((ch === "\n" || ch === "\r") && !inQuotes) {
+      if (ch === "\r" && csvText[i + 1] === "\n") i++;
+      row.push(current);
+      current = "";
+      if (row.some((v) => v.trim())) rows.push(row);
+      row = [];
+    } else {
+      current += ch;
+    }
   }
+  if (current || row.length) {
+    row.push(current);
+    if (row.some((v) => v.trim())) rows.push(row);
+  }
+  return rows;
+}
 
-  return data;
+/**
+ * Escape a value for CSV output
+ */
+export function csvEscape(value: string | number): string {
+  const s = String(value);
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
 }
 
 /**

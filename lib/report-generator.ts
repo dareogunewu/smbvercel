@@ -253,9 +253,10 @@ export function exportToCSV(transactions: Transaction[], fileName?: string, isMu
       const day = String(date.getDate()).padStart(2, '0');
       const formattedDate = `${monthName} ${day}`;
 
+      const escaped = transaction.description.replace(/"/g, '""');
       const row = [
         formattedDate,
-        `"${transaction.description}"`,
+        `"${escaped}"`,
         transaction.category || "Uncategorized",
         transaction.amount.toFixed(2),
         transaction.type || (transaction.amount >= 0 ? "credit" : "debit"),

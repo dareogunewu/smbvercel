@@ -3,23 +3,19 @@ import { persist } from "zustand/middleware";
 import { Transaction, MerchantRule, UploadStatus } from "./types";
 
 interface AppState {
-  // Transactions
   transactions: Transaction[];
   setTransactions: (transactions: Transaction[]) => void;
   addTransactions: (transactions: Transaction[]) => void;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   clearTransactions: () => void;
 
-  // Mode (single vs multi-month)
   isMultiMonthMode: boolean;
   setMultiMonthMode: (enabled: boolean) => void;
 
-  // Merchant Rules (persisted)
   merchantRules: MerchantRule[];
   addMerchantRule: (rule: MerchantRule) => void;
   getMerchantRules: () => MerchantRule[];
 
-  // Upload Status
   uploadStatus: UploadStatus;
   setUploadStatus: (status: UploadStatus) => void;
   uploadProgress: number;
@@ -27,25 +23,22 @@ interface AppState {
   errorMessage: string | null;
   setErrorMessage: (message: string | null) => void;
 
-  // File Info
   fileName: string | null;
   setFileName: (name: string | null) => void;
+  lastLoadedAt: number | null;
 }
 
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
-      // Transactions
       transactions: [],
-      setTransactions: (transactions) => set({ transactions }),
+      setTransactions: (transactions) =>
+        set({ transactions, lastLoadedAt: Date.now() }),
       addTransactions: (newTransactions) =>
         set((state) => {
-          // In single-month mode, replace. In multi-month mode, append.
           if (!state.isMultiMonthMode) {
-            return { transactions: newTransactions };
+            return { transactions: newTransactions, lastLoadedAt: Date.now() };
           }
-
-          // Multi-month mode: Append new transactions, avoiding duplicates
           return {
             transactions: [
               ...state.transactions,
@@ -59,6 +52,7 @@ export const useStore = create<AppState>()(
                   )
               ),
             ],
+            lastLoadedAt: Date.now(),
           };
         }),
       updateTransaction: (id, updates) =>
@@ -67,23 +61,19 @@ export const useStore = create<AppState>()(
             t.id === id ? { ...t, ...updates } : t
           ),
         })),
-      clearTransactions: () => set({ transactions: [] }),
+      clearTransactions: () =>
+        set({ transactions: [], fileName: null, uploadStatus: "idle", lastLoadedAt: null }),
 
-      // Mode
       isMultiMonthMode: false,
       setMultiMonthMode: (enabled) => set({ isMultiMonthMode: enabled }),
 
-      // Merchant Rules
       merchantRules: [],
       addMerchantRule: (rule) =>
         set((state) => {
-          // Check if rule already exists for this merchant
           const exists = state.merchantRules.some(
             (r) => r.merchantName.toLowerCase() === rule.merchantName.toLowerCase()
           );
-
           if (exists) {
-            // Update existing rule
             return {
               merchantRules: state.merchantRules.map((r) =>
                 r.merchantName.toLowerCase() === rule.merchantName.toLowerCase()
@@ -92,15 +82,10 @@ export const useStore = create<AppState>()(
               ),
             };
           }
-
-          // Add new rule
-          return {
-            merchantRules: [...state.merchantRules, rule],
-          };
+          return { merchantRules: [...state.merchantRules, rule] };
         }),
       getMerchantRules: () => get().merchantRules,
 
-      // Upload Status
       uploadStatus: "idle",
       setUploadStatus: (status) => set({ uploadStatus: status }),
       uploadProgress: 0,
@@ -108,16 +93,14 @@ export const useStore = create<AppState>()(
       errorMessage: null,
       setErrorMessage: (message) => set({ errorMessage: message }),
 
-      // File Info
       fileName: null,
       setFileName: (name) => set({ fileName: name }),
+      lastLoadedAt: null,
     }),
     {
       name: "smbowner-storage",
       partialize: (state) => ({
-        // Only persist merchant rules - treat each session as fresh
         merchantRules: state.merchantRules,
-        // DO NOT persist transactions or mode - they reset on reload
       }),
     }
   )
