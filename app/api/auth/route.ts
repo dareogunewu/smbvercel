@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import "@/lib/env"; // validate env vars at startup
 
 // Derives a key using PBKDF2-SHA256. salt is a Uint8Array.
 async function pbkdf2Hash(password: string, salt: Uint8Array): Promise<string> {

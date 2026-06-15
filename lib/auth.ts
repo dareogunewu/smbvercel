@@ -1,8 +1,10 @@
 /**
- * Simple passkey authentication system
- * Uses browser localStorage to track authentication state
- * Passkey verification happens server-side via /api/auth (hash never exposed to client)
+ * Passkey authentication — session stored in localStorage.
+ * Verification is server-side (/api/auth); the hash never reaches the client.
+ * Session expires after 8 hours of inactivity and is renewed on each authenticated action.
  */
+
+const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 hours
 
 /**
  * Verify if the provided passkey is correct (server-side comparison)
@@ -32,16 +34,14 @@ export function isAuthenticated(): boolean {
 
   if (!authToken || !authExpiry) return false;
 
-  // Check if token has expired (24 hour session)
   const expiryTime = parseInt(authExpiry, 10);
-  const now = Date.now();
-
-  if (now > expiryTime) {
-    // Token expired, clear it
+  if (Date.now() > expiryTime) {
     clearAuth();
     return false;
   }
 
+  // Slide the inactivity window on each check
+  extendSession();
   return authToken === 'authenticated';
 }
 
@@ -52,7 +52,7 @@ export function setAuth(): void {
   if (typeof window === 'undefined') return;
 
   const now = Date.now();
-  const expiryTime = now + (24 * 60 * 60 * 1000); // 24 hours
+  const expiryTime = now + SESSION_TTL;
 
   localStorage.setItem('smbowner_auth', 'authenticated');
   localStorage.setItem('smbowner_auth_expiry', expiryTime.toString());
@@ -84,17 +84,12 @@ export function getSessionTimeRemaining(): number {
 }
 
 /**
- * Extend session by another 24 hours
+ * Slide the session inactivity window forward (called automatically by isAuthenticated)
  */
 export function extendSession(): void {
-  if (!isAuthenticated()) return;
-  setAuth(); // This resets the expiry to 24 hours from now
+  if (typeof window === 'undefined') return;
+  const authToken = localStorage.getItem('smbowner_auth');
+  if (authToken !== 'authenticated') return;
+  localStorage.setItem('smbowner_auth_expiry', (Date.now() + SESSION_TTL).toString());
 }
 
-/**
- * Generate a passkey hash for environment variable setup
- * This is a utility function for initial setup
- */
-export async function generatePasskeyHash(passkey: string): Promise<string> {
-  return await hashPassword(passkey);
-}
