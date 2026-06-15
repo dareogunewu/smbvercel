@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FileSpreadsheet, FileDown } from "lucide-react";
+import { FileSpreadsheet, FileDown, Printer } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface ReportGeneratorProps {
@@ -224,6 +224,15 @@ export function ReportGenerator({ transactions }: ReportGeneratorProps) {
           >
             <FileDown className="h-4 w-4 mr-2" />
             {isMultiMonthMode ? "Fiscal Year CSV" : "Export Transactions (CSV)"}
+          </Button>
+          <Button
+            onClick={() => window.print()}
+            variant="ghost"
+            className="w-full"
+            size="sm"
+          >
+            <Printer className="h-4 w-4 mr-2" />
+            Print / Save as PDF
           </Button>
           {categorized === 0 && (
             <p className="text-xs text-amber-600 text-center pt-1">

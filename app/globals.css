@@ -59,3 +59,56 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  /* Hide everything except the transaction table */
+  header, footer, nav,
+  [data-print-hide],
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+  }
+
+  /* Show only the transactions card */
+  [data-print-show] {
+    display: block !important;
+  }
+
+  /* Remove shadows and rounded corners for print */
+  .shadow, .shadow-sm, .shadow-md, [class*="shadow"] {
+    box-shadow: none !important;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 9pt;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 4px 8px;
+  }
+
+  th {
+    background: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Page breaks */
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Remove overflow constraints so all rows print */
+  .max-h-\\[520px\\], [style*="max-height"] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}

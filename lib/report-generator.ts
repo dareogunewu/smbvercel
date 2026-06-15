@@ -190,6 +190,43 @@ export async function exportToExcel(report: CorporateReport, fileName?: string) 
   const totalRowObj = sheet.addRow(totalRow);
   totalRowObj.font = { bold: true };
 
+  // Summary Sheet
+  const summarySheet = workbook.addWorksheet("Summary");
+  summarySheet.columns = [
+    { header: "Category", width: 28 },
+    { header: "Transactions", width: 14 },
+    { header: "Total Amount", width: 16 },
+    { header: "% of Expenses", width: 16 },
+  ];
+  summarySheet.getRow(1).font = { bold: true };
+
+  const grandExpenses = Object.entries(report.categories)
+    .filter(([, d]) => d.amount < 0 || d.transactions.some((t) => t.amount < 0))
+    .reduce((s, [, d]) => s + Math.abs(d.amount), 0) || 1;
+
+  summarySheet.addRow(["FINANCIAL SUMMARY"]);
+  summarySheet.getRow(2).font = { bold: true, size: 13 };
+  summarySheet.addRow(["Period", `${report.period.start} → ${report.period.end}`]);
+  summarySheet.addRow(["Revenue", "", report.summary.totalRevenue.toFixed(2)]);
+  summarySheet.addRow(["Expenses", "", report.summary.totalExpenses.toFixed(2)]);
+  summarySheet.addRow(["Net Income", "", report.summary.netIncome.toFixed(2)]);
+  summarySheet.addRow([]);
+  summarySheet.addRow(["EXPENSES BY CATEGORY"]);
+  summarySheet.getRow(8).font = { bold: true };
+  summarySheet.addRow(["Category", "# Transactions", "Amount ($)", "% of Total"]);
+  summarySheet.getRow(9).font = { bold: true };
+
+  Object.entries(categoryTotals)
+    .sort(([, a], [, b]) => b - a)
+    .forEach(([cat, total]) => {
+      summarySheet.addRow([
+        cat,
+        report.categories[cat]?.count ?? 0,
+        total.toFixed(2),
+        `${Math.round((total / grandExpenses) * 100)}%`,
+      ]);
+    });
+
   // Transactions Sheet
   const transactionsSheet = workbook.addWorksheet("Transactions");
 
