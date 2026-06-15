@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const envSchema = z.object({
   PASSKEY_HASH: z.string().min(1, "PASSKEY_HASH is required. Run: node scripts/generate-passkey.mjs <password>"),
+  BSC_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
