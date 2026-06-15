@@ -28,14 +28,10 @@ import { isAuthenticated, clearAuth } from "@/lib/auth";
 export default function Home() {
   const {
     transactions,
-    setTransactions,
     clearTransactions,
     uploadStatus,
-    setUploadStatus,
     uploadStep,
-    setUploadStep,
     errorMessage,
-    merchantRules,
     isMultiMonthMode,
     setMultiMonthMode,
     fileName,
