@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import "@/lib/env"; // validate env vars at startup
+import { getEnv } from "@/lib/env";
 
 // Derives a key using PBKDF2-SHA256. salt is a Uint8Array.
 async function pbkdf2Hash(password: string, salt: Uint8Array): Promise<string> {
@@ -30,6 +30,7 @@ function hexToBytes(hex: string): Uint8Array {
 
 export async function POST(request: NextRequest) {
   try {
+    getEnv(); // validate env on first real request
     const body = await request.json();
     const { passkey } = body as { passkey?: string };
 

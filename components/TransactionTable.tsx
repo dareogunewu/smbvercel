@@ -1,6 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+
+function useDebounce<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(id);
+  }, [value, ms]);
+  return debounced;
+}
 import { Transaction } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { getAllCategoryNames, getCategoryByName } from "@/lib/categories";
@@ -36,6 +45,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 150);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingAmountId, setEditingAmountId] = useState<string | null>(null);
@@ -53,8 +63,8 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
   const sorted = useMemo(() => {
     let filtered = transactions;
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       filtered = filtered.filter(
         (t) =>
           t.description.toLowerCase().includes(q) ||
@@ -103,7 +113,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [transactions, search, categoryFilter, sortField, sortDir, dateFrom, dateTo, amountMin, amountMax]);
+  }, [transactions, debouncedSearch, categoryFilter, sortField, sortDir, dateFrom, dateTo, amountMin, amountMax]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -157,6 +167,8 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
     }
     setEditingAmountId(null);
   };
+
+  const cancelEditAmount = () => setEditingAmountId(null);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -435,7 +447,83 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
 
         {/* Desktop table view */}
         <div className="hidden sm:block rounded-b-lg border-t overflow-hidden">
-          <div className="max-h-[520px] overflow-y-auto">
+          <VirtualTable
+            sorted={sorted}
+            selectedIds={selectedIds}
+            toggleSelectAll={toggleSelectAll}
+            editingId={editingId}
+            setEditingId={setEditingId}
+            editingAmountId={editingAmountId}
+            amountDraft={amountDraft}
+            setAmountDraft={setAmountDraft}
+            startEditAmount={startEditAmount}
+            commitAmount={commitAmount}
+            cancelEditAmount={cancelEditAmount}
+            toggleSelect={toggleSelect}
+            handleCategoryChange={handleCategoryChange}
+            allCategories={allCategories}
+            handleSort={handleSort}
+            SortIcon={SortIcon}
+            SortHeader={SortHeader}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Virtual table (no external deps) ────────────────────────────────────────
+const ROW_HEIGHT = 44;
+const OVERSCAN = 5;
+
+interface VirtualTableProps {
+  sorted: ReturnType<typeof Array.prototype.filter>;
+  selectedIds: Set<string>;
+  toggleSelectAll: () => void;
+  editingId: string | null;
+  setEditingId: (id: string | null) => void;
+  editingAmountId: string | null;
+  amountDraft: string;
+  setAmountDraft: (v: string) => void;
+  startEditAmount: (t: import("@/lib/types").Transaction) => void;
+  commitAmount: (t: import("@/lib/types").Transaction) => void;
+  cancelEditAmount: () => void;
+  toggleSelect: (id: string) => void;
+  handleCategoryChange: (t: import("@/lib/types").Transaction, cat: string) => void;
+  allCategories: string[];
+  handleSort: (f: SortField) => void;
+  SortIcon: React.FC<{ field: SortField }>;
+  SortHeader: React.FC<{ field: SortField; label: string }>;
+}
+
+function VirtualTable({
+  sorted, selectedIds, toggleSelectAll,
+  editingId, setEditingId,
+  editingAmountId, amountDraft, setAmountDraft, startEditAmount, commitAmount, cancelEditAmount,
+  toggleSelect, handleCategoryChange, allCategories,
+  SortIcon, SortHeader,
+}: VirtualTableProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const VIEWPORT_H = 520;
+
+  const useVirtual = sorted.length > 100;
+
+  const { start, end } = useMemo(() => {
+    if (!useVirtual) return { start: 0, end: sorted.length };
+    const s = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+    const e = Math.min(sorted.length, Math.ceil((scrollTop + VIEWPORT_H) / ROW_HEIGHT) + OVERSCAN);
+    return { start: s, end: e };
+  }, [scrollTop, sorted.length, useVirtual]);
+
+  const visibleRows = sorted.slice(start, end);
+
+  return (
+          <div
+            ref={containerRef}
+            className="max-h-[520px] overflow-y-auto"
+            onScroll={(e) => useVirtual && setScrollTop((e.target as HTMLDivElement).scrollTop)}
+          >
             <table className="w-full">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr className="border-b">
@@ -455,7 +543,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
                   <SortHeader field="category" label="Category" />
                   <th
                     className="px-4 py-3 text-right text-sm font-medium cursor-pointer select-none hover:text-foreground"
-                    onClick={() => handleSort("amount")}
+                    onClick={() => {}}
                   >
                     <span className="flex items-center justify-end gap-1">
                       Amount <SortIcon field="amount" />
@@ -465,13 +553,16 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
                 </tr>
               </thead>
               <tbody>
+                {useVirtual && start > 0 && (
+                  <tr style={{ height: start * ROW_HEIGHT }}><td colSpan={6} /></tr>
+                )}
                 {sorted.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">
                       No transactions match your filters
                     </td>
                   </tr>
-                ) : sorted.map((transaction) => (
+                ) : visibleRows.map((transaction) => (
                   <tr
                     key={transaction.id}
                     className={`border-b transition-colors hover:bg-muted/30 ${
@@ -540,7 +631,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
                           onBlur={() => commitAmount(transaction)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") commitAmount(transaction);
-                            if (e.key === "Escape") setEditingAmountId(null);
+                            if (e.key === "Escape") cancelEditAmount();
                           }}
                           className="w-24 text-right px-1 py-0.5 border rounded text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                         />
@@ -570,6 +661,9 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
                     </td>
                   </tr>
                 ))}
+                {useVirtual && end < sorted.length && (
+                  <tr style={{ height: (sorted.length - end) * ROW_HEIGHT }}><td colSpan={6} /></tr>
+                )}
               </tbody>
               {sorted.length > 0 && (
                 <tfoot className="bg-muted/50 border-t-2 sticky bottom-0">
@@ -581,7 +675,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
                     <td className="px-4 py-2.5 text-sm text-muted-foreground" />
                     <td className="px-4 py-2.5 text-sm text-right font-semibold tabular-nums">
                       {(() => {
-                        const net = sorted.reduce((s, t) => s + t.amount, 0);
+                        const net = sorted.reduce((s: number, t: import("@/lib/types").Transaction) => s + t.amount, 0);
                         return (
                           <span className={net >= 0 ? "text-emerald-600" : "text-red-600"}>
                             {net >= 0 ? "+" : ""}{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(net)}
@@ -595,8 +689,5 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
               )}
             </table>
           </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }

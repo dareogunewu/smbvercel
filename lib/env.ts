@@ -7,14 +7,16 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 
-function validateEnv() {
+// Lazy singleton — validated on first call, not at import time (build-safe)
+let _env: z.infer<typeof envSchema> | null = null;
+
+export function getEnv(): z.infer<typeof envSchema> {
+  if (_env) return _env;
   const result = envSchema.safeParse(process.env);
   if (!result.success) {
     const missing = result.error.issues.map((i) => `  • ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`\n[smbowner] Missing or invalid environment variables:\n${missing}\n`);
   }
-  return result.data;
+  _env = result.data;
+  return _env;
 }
-
-// Validate once at module load (server-side only)
-export const env = typeof window === "undefined" ? validateEnv() : ({} as ReturnType<typeof validateEnv>);

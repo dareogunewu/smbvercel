@@ -2,13 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
+import dynamic from "next/dynamic";
 import { FileUpload } from "@/components/FileUpload";
 import { TransactionTable } from "@/components/TransactionTable";
-import { CategoryReview } from "@/components/CategoryReview";
-import { ReportGenerator } from "@/components/ReportGenerator";
 import { LoginPage } from "@/components/LoginPage";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { MerchantRulesManager } from "@/components/MerchantRulesManager";
+
+const CategoryReview = dynamic(() =>
+  import("@/components/CategoryReview").then((m) => ({ default: m.CategoryReview }))
+);
+const ReportGenerator = dynamic(() =>
+  import("@/components/ReportGenerator").then((m) => ({ default: m.ReportGenerator }))
+);
+const MerchantRulesManager = dynamic(() =>
+  import("@/components/MerchantRulesManager").then((m) => ({ default: m.MerchantRulesManager }))
+);
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
