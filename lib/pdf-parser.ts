@@ -1,15 +1,9 @@
-import pdfParse from "pdf-parse";
-
-interface ParsedTransaction {
-  date: string;
-  description: string;
-  amount: number;
-}
+import { inflateSync } from "zlib";
 
 export interface ParseResult {
   success: boolean;
   bank: string;
-  transactions: ParsedTransaction[];
+  transactions: Array<{ date: string; description: string; amount: number }>;
   metadata: {
     total_transactions: number;
     safety_check_passed: boolean;
@@ -18,28 +12,119 @@ export interface ParseResult {
   error?: string;
 }
 
-const BANK_PATTERNS: Array<{ name: string; patterns: RegExp[] }> = [
-  { name: "TD", patterns: [/TD\s+(?:Canada\s+Trust|Bank)/i, /Toronto-Dominion/i] },
-  { name: "RBC", patterns: [/Royal\s+Bank/i, /RBC\s+(?:Royal|Direct)/i] },
-  { name: "BMO", patterns: [/Bank\s+of\s+Montreal/i, /\bBMO\b/i] },
-  { name: "CIBC", patterns: [/\bCIBC\b/i, /Canadian\s+Imperial/i] },
-  { name: "Scotiabank", patterns: [/Scotiabank/i, /Bank\s+of\s+Nova\s+Scotia/i] },
-  { name: "Tangerine", patterns: [/\bTangerine\b/i] },
-  { name: "Desjardins", patterns: [/Desjardins/i] },
-  { name: "National Bank", patterns: [/National\s+Bank/i, /Banque\s+Nationale/i] },
-  { name: "HSBC", patterns: [/\bHSBC\b/i] },
-  { name: "EQ Bank", patterns: [/EQ\s+Bank/i] },
+// ─── PDF text extraction (zero dependencies) ────────────────────────────────
+
+function decodePDFString(s: string): string {
+  return s
+    .replace(/\\([0-7]{1,3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)))
+    .replace(/\\n/g, " ")
+    .replace(/\\r/g, " ")
+    .replace(/\\t/g, " ")
+    .replace(/\\\\/g, "\\")
+    .replace(/\\\(/g, "(")
+    .replace(/\\\)/g, ")");
+}
+
+function hexToStr(hex: string): string {
+  let r = "";
+  for (let i = 0; i + 1 < hex.length; i += 2) {
+    r += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16));
+  }
+  return r;
+}
+
+function extractFromStream(stream: string): string {
+  const lines: string[] = [];
+  const btBlocks = stream.match(/BT[\s\S]*?ET/g) ?? [];
+
+  for (const block of btBlocks) {
+    const lineParts: string[] = [];
+
+    // (text) Tj  or  (text) '
+    for (const m of block.matchAll(/\(([^)]*(?:\\.[^)]*)*)\)\s*[Tj']/g)) {
+      lineParts.push(decodePDFString(m[1]));
+    }
+
+    // [(text) kern (text) ...] TJ
+    for (const m of block.matchAll(/\[([\s\S]*?)\]\s*TJ/g)) {
+      const inner = m[1];
+      const parts: string[] = [];
+      for (const p of inner.matchAll(/\(([^)]*(?:\\.[^)]*)*)\)/g)) {
+        parts.push(decodePDFString(p[1]));
+      }
+      // Also handle hex strings inside TJ array
+      for (const p of inner.matchAll(/<([0-9a-fA-F]+)>/g)) {
+        parts.push(hexToStr(p[1]));
+      }
+      lineParts.push(parts.join(""));
+    }
+
+    // <hex> Tj
+    for (const m of block.matchAll(/<([0-9a-fA-F\s]+)>\s*Tj/g)) {
+      lineParts.push(hexToStr(m[1].replace(/\s/g, "")));
+    }
+
+    if (lineParts.length) lines.push(lineParts.join(" "));
+  }
+
+  return lines.join("\n");
+}
+
+function extractPDFText(buf: Buffer): string {
+  const raw = buf.toString("latin1");
+  const parts: string[] = [];
+
+  // Find every stream/endstream pair
+  const streamRe = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let m: RegExpExecArray | null;
+
+  while ((m = streamRe.exec(raw)) !== null) {
+    // Look at the 600 chars before "stream" for the object dictionary
+    const dictSlice = raw.slice(Math.max(0, m.index - 600), m.index);
+    const isFlate = /\/Filter\s*\/FlateDecode/.test(dictSlice) || /\/Filter\s*\[[\s\S]*?\/FlateDecode/.test(dictSlice)
+      || (dictSlice.includes("/Fl") && !dictSlice.includes("/Fla") === false);
+
+    let text = "";
+    if (isFlate) {
+      try {
+        const decompressed = inflateSync(Buffer.from(m[1], "latin1"));
+        text = decompressed.toString("latin1");
+      } catch {
+        continue; // skip streams we can't decompress
+      }
+    } else {
+      text = m[1];
+    }
+
+    const extracted = extractFromStream(text);
+    if (extracted.trim()) parts.push(extracted);
+  }
+
+  return parts.join("\n");
+}
+
+// ─── Bank detection ──────────────────────────────────────────────────────────
+
+const BANK_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  { name: "TD",           re: /TD\s+(?:Canada\s+Trust|Bank)|Toronto-Dominion/i },
+  { name: "RBC",          re: /Royal\s+Bank|RBC\s+(?:Royal|Direct)/i },
+  { name: "BMO",          re: /Bank\s+of\s+Montreal|\bBMO\b/i },
+  { name: "CIBC",         re: /\bCIBC\b|Canadian\s+Imperial/i },
+  { name: "Scotiabank",   re: /Scotiabank|Bank\s+of\s+Nova\s+Scotia/i },
+  { name: "Tangerine",    re: /\bTangerine\b/i },
+  { name: "Desjardins",   re: /Desjardins/i },
+  { name: "National Bank",re: /National\s+Bank|Banque\s+Nationale/i },
+  { name: "HSBC",         re: /\bHSBC\b/i },
+  { name: "EQ Bank",      re: /EQ\s+Bank/i },
 ];
 
+// ─── Transaction parsing ─────────────────────────────────────────────────────
+
 const MONTHS: Record<string, string> = {
-  jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
-  jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
+  jan:"01", feb:"02", mar:"03", apr:"04", may:"05", jun:"06",
+  jul:"07", aug:"08", sep:"09", oct:"10", nov:"11", dec:"12",
 };
 
-// Matches: $1,234.56  -25.99  (1,234.56)  1,234.56-
-const AMOUNT_RE = /([+-]?\$?[\d,]+\.\d{2}[-+]?|\(\$?[\d,]+\.\d{2}\))/;
-
-// Date patterns — ordered from most specific to least
 const DATE_PATTERNS = [
   /(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))/,
   /([A-Z][a-z]{2}\.?\s+\d{1,2},?\s+\d{4})/,
@@ -47,183 +132,100 @@ const DATE_PATTERNS = [
   /((?:0?[1-9]|1[0-2])\/(?:0?[1-9]|[12]\d|3[01])(?:\/\d{2,4})?)/,
 ];
 
+const AMOUNT_RE = /([+-]?\$?[\d,]+\.\d{2}[-+]?|\(\$?[\d,]+\.\d{2}\))/;
+
 function parseAmount(s: string): number {
   const neg = s.startsWith("-") || s.endsWith("-") || (s.startsWith("(") && s.endsWith(")"));
   const val = parseFloat(s.replace(/[()$,\s+-]/g, ""));
-  if (isNaN(val)) return NaN;
-  return neg ? -Math.abs(val) : val;
+  return isNaN(val) ? NaN : neg ? -Math.abs(val) : val;
 }
 
-function normalizeDate(dateStr: string, year: number): string {
-  const s = dateStr.trim().replace(/\.$/, "");
-
+function normalizeDate(s: string, year: number): string {
+  s = s.trim().replace(/\.$/, "");
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
-  // MM/DD/YYYY
   const mdyFull = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (mdyFull) return `${mdyFull[3]}-${mdyFull[1].padStart(2, "0")}-${mdyFull[2].padStart(2, "0")}`;
+  if (mdyFull) return `${mdyFull[3]}-${mdyFull[1].padStart(2,"0")}-${mdyFull[2].padStart(2,"0")}`;
 
-  // MM/DD/YY
   const mdyShort = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
-  if (mdyShort) return `20${mdyShort[3]}-${mdyShort[1].padStart(2, "0")}-${mdyShort[2].padStart(2, "0")}`;
+  if (mdyShort) return `20${mdyShort[3]}-${mdyShort[1].padStart(2,"0")}-${mdyShort[2].padStart(2,"0")}`;
 
-  // MM/DD
   const md = s.match(/^(\d{1,2})\/(\d{1,2})$/);
-  if (md) return `${year}-${md[1].padStart(2, "0")}-${md[2].padStart(2, "0")}`;
+  if (md) return `${year}-${md[1].padStart(2,"0")}-${md[2].padStart(2,"0")}`;
 
-  // Jan 15, 2024 or Jan 15
   const mmmdd = s.match(/^([A-Z][a-z]{2})\.?\s+(\d{1,2}),?\s*(\d{4})?$/);
   if (mmmdd) {
-    const m = MONTHS[mmmdd[1].toLowerCase()];
-    if (!m) return s;
-    return `${mmmdd[3] || year}-${m}-${mmmdd[2].padStart(2, "0")}`;
+    const mo = MONTHS[mmmdd[1].toLowerCase()];
+    return mo ? `${mmmdd[3] || year}-${mo}-${mmmdd[2].padStart(2,"0")}` : s;
   }
-
   return s;
 }
 
-function tryParseLines(lines: string[], year: number): ParsedTransaction[] {
-  const results: ParsedTransaction[] = [];
+function parseLines(
+  lines: string[],
+  year: number
+): Array<{ date: string; description: string; amount: number }> {
+  const results = [];
+  const SKIP = /^(?:date|description|balance|total|opening|closing|statement|page|account)/i;
 
   for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.length < 8) continue;
+    const t = line.trim();
+    if (t.length < 8) continue;
 
-    // Find date at start of line
     let dateStr: string | null = null;
-    let afterDate = trimmed;
+    let afterDate = t;
 
-    for (const pattern of DATE_PATTERNS) {
-      const m = trimmed.match(new RegExp("^\\s*" + pattern.source));
-      if (m) {
-        dateStr = m[1];
-        afterDate = trimmed.slice(m[0].length).trim();
-        break;
-      }
+    for (const pat of DATE_PATTERNS) {
+      const m = t.match(new RegExp("^\\s*" + pat.source));
+      if (m) { dateStr = m[1]; afterDate = t.slice(m[0].length).trim(); break; }
     }
     if (!dateStr) continue;
 
-    // Find amounts at end of line (may have 1 or 2 — second would be running balance)
     const amountMatches = [...afterDate.matchAll(new RegExp(AMOUNT_RE.source, "g"))];
-    if (amountMatches.length === 0) continue;
+    if (!amountMatches.length) continue;
 
-    // Take first amount as transaction amount, last as possible balance
-    // If only 1 amount: that's the transaction
-    // If 2 amounts: first is transaction, second is running balance
     const txAmountStr = amountMatches[0][1];
     const amount = parseAmount(txAmountStr);
     if (isNaN(amount)) continue;
 
-    // Description is text after date, before the first amount
-    const firstAmountIdx = afterDate.indexOf(txAmountStr);
-    const description = afterDate.slice(0, firstAmountIdx).trim();
-    if (description.length < 2) continue;
+    const description = afterDate.slice(0, afterDate.indexOf(txAmountStr)).trim();
+    if (description.length < 2 || SKIP.test(description)) continue;
 
-    // Skip lines that are likely headers or balance lines
-    if (/^(?:date|description|balance|total|opening|closing|statement)/i.test(description)) continue;
-    if (/balance\s+forward|opening\s+balance|closing\s+balance/i.test(description)) continue;
-
-    results.push({
-      date: normalizeDate(dateStr, year),
-      description,
-      amount,
-    });
+    results.push({ date: normalizeDate(dateStr, year), description, amount });
   }
-
   return results;
 }
 
-function tryParseMultiLine(lines: string[], year: number): ParsedTransaction[] {
-  // For statements where date, description, and amount may be on separate lines
-  const results: ParsedTransaction[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i].trim();
-
-    // Look for a line that is JUST a date
-    let dateStr: string | null = null;
-    for (const pattern of DATE_PATTERNS) {
-      const m = line.match(new RegExp("^" + pattern.source + "\\s*$"));
-      if (m) { dateStr = m[1]; break; }
-    }
-
-    if (dateStr && i + 1 < lines.length) {
-      const description = lines[i + 1].trim();
-      const amountLine = lines[i + 2]?.trim() || "";
-      const amountMatch = amountLine.match(new RegExp("^" + AMOUNT_RE.source + "\\s*$"));
-
-      if (description.length > 1 && amountMatch) {
-        const amount = parseAmount(amountMatch[1]);
-        if (!isNaN(amount)) {
-          results.push({ date: normalizeDate(dateStr, year), description, amount });
-          i += 3;
-          continue;
-        }
-      }
-    }
-    i++;
-  }
-
-  return results;
-}
+// ─── Main export ─────────────────────────────────────────────────────────────
 
 export async function parseBankStatement(buffer: ArrayBuffer): Promise<ParseResult> {
   try {
-    const data = await pdfParse(Buffer.from(buffer));
-    const fullText = data.text;
+    const fullText = extractPDFText(Buffer.from(buffer));
 
-    // Detect bank
-    let bank = "GenericBank";
-    for (const b of BANK_PATTERNS) {
-      if (b.patterns.some((p) => p.test(fullText))) {
-        bank = b.name;
-        break;
-      }
-    }
-
-    // Extract statement year
+    const bank = BANK_PATTERNS.find(b => b.re.test(fullText))?.name ?? "GenericBank";
     const yearMatch = fullText.match(/\b(20\d{2})\b/);
-    const statementYear = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+    const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
 
     const lines = fullText.split(/\r?\n/);
+    const transactions = parseLines(lines, year);
 
-    // Strategy 1: parse each line as date + description + amount
-    let transactions = tryParseLines(lines, statementYear);
-
-    // Strategy 2: if strategy 1 found very few, try multi-line format
-    if (transactions.length < 3) {
-      const multiLine = tryParseMultiLine(lines, statementYear);
-      if (multiLine.length > transactions.length) {
-        transactions = multiLine;
-      }
-    }
-
-    // Deduplicate exact matches
+    // Deduplicate
     const seen = new Set<string>();
-    const deduped = transactions.filter((t) => {
-      const key = `${t.date}|${t.description}|${t.amount}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+    const deduped = transactions.filter(t => {
+      const k = `${t.date}|${t.description}|${t.amount}`;
+      return seen.has(k) ? false : (seen.add(k), true);
     });
 
     return {
       success: deduped.length > 0,
       bank,
       transactions: deduped,
-      metadata: {
-        total_transactions: deduped.length,
-        safety_check_passed: true,
-        statement_type: "checking",
-      },
-      error: deduped.length === 0 ? "No transactions found. The PDF may be scanned or use an unsupported format." : undefined,
+      metadata: { total_transactions: deduped.length, safety_check_passed: true, statement_type: "checking" },
+      error: deduped.length === 0 ? "No transactions found. The PDF may use an unsupported format." : undefined,
     };
   } catch (e) {
     return {
-      success: false,
-      bank: "Unknown",
-      transactions: [],
+      success: false, bank: "Unknown", transactions: [],
       metadata: { total_transactions: 0, safety_check_passed: false, statement_type: "unknown" },
       error: e instanceof Error ? e.message : "Failed to parse PDF",
     };
