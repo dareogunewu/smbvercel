@@ -40,29 +40,44 @@ export async function POST(request: NextRequest) {
     }
 
     const categoryNames = getAllCategoryNames();
+    const CHUNK_SIZE = 40;
 
-    const prompt = `You are a financial transaction categorizer for a small business.
+    const chunks: typeof needsAI[] = [];
+    for (let i = 0; i < needsAI.length; i += CHUNK_SIZE) {
+      chunks.push(needsAI.slice(i, i + CHUNK_SIZE));
+    }
+
+    const allAIResults: { id: string; category: string; confidence: number }[] = [];
+
+    const categoryList = categoryNames.join(", ");
+
+    for (const chunk of chunks) {
+      const prompt = `You are a financial transaction categorizer for a small business.
 Categorize each transaction into exactly one of these categories:
-${categoryNames.join(", ")}
+${categoryList}
 
 Return ONLY a JSON array — no markdown, no explanation:
-[{"id": "...", "category": "...", "confidence": 0.0-1.0}]
+[{"id":"...","category":"...","confidence":0.0-1.0}]
 
 Transactions:
-${needsAI.map((t) => `{"id":"${t.id}","description":${JSON.stringify(t.description)},"amount":${t.amount}}`).join("\n")}`;
+${chunk.map((t) => `{"id":"${t.id}","description":${JSON.stringify(t.description)},"amount":${t.amount}}`).join("\n")}`;
 
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
-    });
+      const message = await client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2048,
+        messages: [{ role: "user", content: prompt }],
+      });
 
-    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const chunkResults: { id: string; category: string; confidence: number }[] = JSON.parse(jsonMatch[0]);
+        allAIResults.push(...chunkResults);
+      }
+    }
 
-    if (jsonMatch) {
-      const aiResults: { id: string; category: string; confidence: number }[] = JSON.parse(jsonMatch[0]);
-      const aiMap = new Map(aiResults.map((r) => [r.id, r]));
+    if (allAIResults.length > 0) {
+      const aiMap = new Map(allAIResults.map((r) => [r.id, r]));
 
       const finalTransactions = locallyCategized.map((t) => {
         const aiResult = aiMap.get(t.id);

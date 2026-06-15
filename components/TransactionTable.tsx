@@ -209,8 +209,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
                       No transactions match your filters
                     </td>
                   </tr>
-                ) : (
-                  sorted.map((transaction) => (
+                ) : sorted.map((transaction) => (
                     <tr
                       key={transaction.id}
                       className={`border-b transition-colors hover:bg-muted/30 ${
@@ -282,9 +281,29 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
                         )}
                       </td>
                     </tr>
-                  ))
-                )}
+                ))}
               </tbody>
+              {sorted.length > 0 && (
+                <tfoot className="bg-muted/50 border-t-2 sticky bottom-0">
+                  <tr>
+                    <td className="px-4 py-2.5 text-sm font-semibold" colSpan={2}>
+                      {sorted.length} transaction{sorted.length !== 1 ? "s" : ""}
+                    </td>
+                    <td className="px-4 py-2.5 text-sm text-muted-foreground" />
+                    <td className="px-4 py-2.5 text-sm text-right font-semibold tabular-nums">
+                      {(() => {
+                        const net = sorted.reduce((s, t) => s + t.amount, 0);
+                        return (
+                          <span className={net >= 0 ? "text-emerald-600" : "text-red-600"}>
+                            {net >= 0 ? "+" : ""}{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(net)}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>

@@ -44,13 +44,18 @@ export function categorizeTransaction(
   mccCode?: number,
   userRules?: MerchantRule[]
 ): CategorizationResult {
-  const normalizedDescription = description.toLowerCase().trim();
+  // Clean the description first — strip transaction codes, dates, prefixes
+  const merchantName = extractMerchantName(description);
+  const normalizedDescription = merchantName.toLowerCase().trim();
+  // Also keep original for broader pattern matching
+  const originalNormalized = description.toLowerCase().trim();
 
   // Strategy 1: Check user's custom rules first (highest priority)
   if (userRules) {
-    const userRule = userRules.find((rule) =>
-      normalizedDescription.includes(rule.merchantName.toLowerCase())
-    );
+    const userRule = userRules.find((rule) => {
+      const ruleKey = rule.merchantName.toLowerCase();
+      return normalizedDescription.includes(ruleKey) || originalNormalized.includes(ruleKey);
+    });
 
     if (userRule) {
       return {
@@ -76,19 +81,21 @@ export function categorizeTransaction(
     }
   }
 
-  // Strategy 3: Keyword matching
+  // Strategy 3: Keyword matching — run on cleaned merchant name first, then full description
   let bestMatch: { category: string; confidence: number } | null = null;
 
   for (const category of categories) {
     for (const keyword of category.keywords) {
-      if (normalizedDescription.includes(keyword.toLowerCase())) {
-        // Calculate confidence based on keyword specificity
-        const keywordLength = keyword.length;
-        const descriptionLength = normalizedDescription.length;
-        const confidence = Math.min(
-          0.9,
-          0.7 + (keywordLength / descriptionLength) * 0.2
-        );
+      const kw = keyword.toLowerCase();
+      const inMerchant = normalizedDescription.includes(kw);
+      const inOriginal = originalNormalized.includes(kw);
+
+      if (inMerchant || inOriginal) {
+        // Higher confidence if the keyword matches the cleaned merchant name
+        // Longer keyword = more specific = more confident
+        const base = inMerchant ? 0.82 : 0.72;
+        const specificity = Math.min(0.08, (kw.length / 8) * 0.08);
+        const confidence = Math.min(0.92, base + specificity);
 
         if (!bestMatch || confidence > bestMatch.confidence) {
           bestMatch = { category: category.name, confidence };
@@ -97,7 +104,7 @@ export function categorizeTransaction(
     }
   }
 
-  if (bestMatch && bestMatch.confidence >= 0.7) {
+  if (bestMatch) {
     return {
       category: bestMatch.category,
       confidence: bestMatch.confidence,
@@ -106,8 +113,8 @@ export function categorizeTransaction(
     };
   }
 
-  // Strategy 4: Pattern-based inference
-  const patternResult = inferFromPatterns(normalizedDescription, amount);
+  // Strategy 4: Pattern-based inference (use original description for payment/transfer/deposit patterns)
+  const patternResult = inferFromPatterns(originalNormalized, amount);
   if (patternResult) {
     return patternResult;
   }

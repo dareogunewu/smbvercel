@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, Component, ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { FileUpload } from "@/components/FileUpload";
 import { TransactionTable } from "@/components/TransactionTable";
 import { CategoryReview } from "@/components/CategoryReview";
 import { ReportGenerator } from "@/components/ReportGenerator";
 import { LoginPage } from "@/components/LoginPage";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,33 +23,6 @@ import {
   Clock,
 } from "lucide-react";
 import { isAuthenticated, clearAuth } from "@/lib/auth";
-
-class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  state = { error: null };
-  static getDerivedStateFromError(error: Error) { return { error }; }
-  render() {
-    if (this.state.error) {
-      return (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6 text-center text-red-800">
-            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-            <p className="font-semibold">Something went wrong</p>
-            <p className="text-sm mt-1">{(this.state.error as Error).message}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3"
-              onClick={() => this.setState({ error: null })}
-            >
-              Try again
-            </Button>
-          </CardContent>
-        </Card>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 export default function Home() {
   const {
@@ -73,37 +47,40 @@ export default function Home() {
     setIsLoggedIn(isAuthenticated());
   }, []);
 
-  // Categorize via API (enables AI categorization via Claude Haiku)
+  // Categorize via API (enables Claude Haiku AI for unknown merchants)
   useEffect(() => {
-    if (transactions.length > 0 && uploadStatus === "complete") {
-      const needsCategorization = transactions.some((t) => !t.category);
-      if (!needsCategorization) {
-        const needsReview = transactions.some((t) => t.needsReview);
-        if (needsReview) setShowReview(true);
-        return;
-      }
+    if (uploadStatus !== "complete") return;
 
-      setUploadStatus("processing");
+    const current = useStore.getState();
+    const txns = current.transactions;
+    if (txns.length === 0) return;
 
-      fetch("/api/categorize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactions, merchantRules }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.success) {
-            setTransactions(data.transactions);
-            const needsReview = data.transactions.some(
-              (t: typeof transactions[0]) => t.needsReview
-            );
-            if (needsReview) setShowReview(true);
-          }
-          setUploadStatus("complete");
-        })
-        .catch(() => setUploadStatus("complete"));
+    const needsCategorization = txns.some((t) => !t.category);
+    if (!needsCategorization) {
+      if (txns.some((t) => t.needsReview)) setShowReview(true);
+      return;
     }
-  }, [transactions.length, uploadStatus]);
+
+    current.setUploadStatus("processing");
+
+    fetch("/api/categorize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transactions: txns, merchantRules: current.merchantRules }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          useStore.getState().setTransactions(data.transactions);
+          if (data.transactions.some((t: typeof txns[0]) => t.needsReview)) {
+            setShowReview(true);
+          }
+        }
+        useStore.getState().setUploadStatus("complete");
+      })
+      .catch(() => useStore.getState().setUploadStatus("complete"));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadStatus]);
 
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out? Your session will end.")) {
