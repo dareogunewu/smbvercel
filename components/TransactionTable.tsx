@@ -520,7 +520,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
                         <button
                           className="flex items-center gap-1 text-left hover:underline focus:outline-none"
                           onClick={() => setEditingId(transaction.id)}
-                          title="Click to change category"
+                          title={transaction.categoryReason ? `AI: ${transaction.categoryReason}` : "Click to change category"}
                         >
                           <span>{getCategoryByName(transaction.category || "")?.icon ?? ""}</span>
                           <span className={!transaction.category || transaction.category === "Uncategorized" ? "text-muted-foreground italic" : ""}>

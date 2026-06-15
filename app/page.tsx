@@ -64,29 +64,58 @@ export default function Home() {
     current.setUploadStatus("processing");
     current.setUploadStep("Matching known merchants...");
 
-    fetch("/api/categorize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transactions: txns, merchantRules: current.merchantRules }),
-    })
-      .then((r) => {
-        useStore.getState().setUploadStep("AI categorizing unknown transactions...");
-        return r.json();
-      })
-      .then((data) => {
-        if (data.success) {
-          useStore.getState().setTransactions(data.transactions);
-          if (data.transactions.some((t: typeof txns[0]) => t.needsReview)) {
-            setShowReview(true);
+    (async () => {
+      try {
+        const res = await fetch("/api/categorize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactions: txns, merchantRules: current.merchantRules }),
+        });
+
+        if (!res.body) throw new Error("No response stream");
+
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+
+          const parts = buf.split("\n\n");
+          buf = parts.pop() ?? "";
+
+          for (const part of parts) {
+            const eventLine = part.match(/^event: (\w+)/m);
+            const dataLine = part.match(/^data: (.+)/m);
+            if (!eventLine || !dataLine) continue;
+
+            const event = eventLine[1];
+            const data = JSON.parse(dataLine[1]);
+
+            if (event === "progress") {
+              useStore.getState().setTransactions(data.transactions);
+              useStore.getState().setUploadStep(data.message || "Categorizing...");
+            } else if (event === "done") {
+              useStore.getState().setTransactions(data.transactions);
+              if (data.transactions.some((t: typeof txns[0]) => t.needsReview)) {
+                setShowReview(true);
+              }
+              useStore.getState().setUploadStatus("complete");
+              useStore.getState().setUploadStep("");
+            } else if (event === "error") {
+              console.error("Categorize error:", data.message);
+              useStore.getState().setUploadStatus("complete");
+              useStore.getState().setUploadStep("");
+            }
           }
         }
+      } catch {
         useStore.getState().setUploadStatus("complete");
         useStore.getState().setUploadStep("");
-      })
-      .catch(() => {
-        useStore.getState().setUploadStatus("complete");
-        useStore.getState().setUploadStep("");
-      });
+      }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadStatus]);
 

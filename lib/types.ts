@@ -10,6 +10,7 @@ export interface Transaction {
   category?: string;
   confidence?: number;
   needsReview?: boolean;
+  categoryReason?: string;
   merchantInfo?: MerchantInfo;
 }
 
