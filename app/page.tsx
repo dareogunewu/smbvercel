@@ -22,6 +22,7 @@ import {
   LogOut,
   RotateCcw,
   Clock,
+  FileX,
 } from "lucide-react";
 import { isAuthenticated, clearAuth } from "@/lib/auth";
 
@@ -181,7 +182,30 @@ export default function Home() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {transactions.length === 0 && <FileUpload />}
+          {transactions.length === 0 && uploadStatus !== "error" && <FileUpload />}
+          {transactions.length === 0 && uploadStatus === "error" && (
+            <Card className="border-dashed">
+              <CardContent className="pt-10 pb-10 flex flex-col items-center gap-4 text-center">
+                <FileX className="h-12 w-12 text-muted-foreground/50" />
+                <div>
+                  <p className="font-medium text-muted-foreground">Upload failed</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {errorMessage || "Could not read transactions from this file."}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    useStore.getState().setUploadStatus("idle");
+                    useStore.getState().setErrorMessage(null);
+                  }}
+                >
+                  <UploadIcon className="h-4 w-4 mr-2" />
+                  Try again
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Mode Toggle */}
           <Card className="border-2 border-primary/20">

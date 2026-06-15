@@ -38,6 +38,8 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingAmountId, setEditingAmountId] = useState<string | null>(null);
+  const [amountDraft, setAmountDraft] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkCategory, setBulkCategory] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -140,6 +142,20 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
     });
     setSelectedIds(new Set());
     setBulkCategory("");
+  };
+
+  const startEditAmount = (t: Transaction) => {
+    setEditingAmountId(t.id);
+    setAmountDraft(Math.abs(t.amount).toString());
+  };
+
+  const commitAmount = (t: Transaction) => {
+    const parsed = parseFloat(amountDraft);
+    if (!isNaN(parsed)) {
+      const signed = t.amount < 0 ? -Math.abs(parsed) : Math.abs(parsed);
+      updateTransaction(t.id, { amount: signed, type: signed >= 0 ? "credit" : "debit" });
+    }
+    setEditingAmountId(null);
   };
 
   const toggleSelect = (id: string) => {
@@ -513,13 +529,31 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
                         </button>
                       )}
                     </td>
-                    <td
-                      className={`px-4 py-2.5 text-sm text-right font-medium tabular-nums ${
-                        transaction.amount > 0 ? "text-emerald-600" : "text-red-600"
-                      }`}
-                    >
-                      {transaction.amount > 0 ? "+" : ""}
-                      {formatCurrency(transaction.amount)}
+                    <td className="px-4 py-2.5 text-sm text-right font-medium tabular-nums">
+                      {editingAmountId === transaction.id ? (
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={amountDraft}
+                          autoFocus
+                          onChange={(e) => setAmountDraft(e.target.value)}
+                          onBlur={() => commitAmount(transaction)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") commitAmount(transaction);
+                            if (e.key === "Escape") setEditingAmountId(null);
+                          }}
+                          className="w-24 text-right px-1 py-0.5 border rounded text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      ) : (
+                        <button
+                          className={`hover:underline focus:outline-none ${transaction.amount > 0 ? "text-emerald-600" : "text-red-600"}`}
+                          onClick={() => startEditAmount(transaction)}
+                          title="Click to correct amount"
+                        >
+                          {transaction.amount > 0 ? "+" : ""}
+                          {formatCurrency(transaction.amount)}
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       {transaction.needsReview ? (
