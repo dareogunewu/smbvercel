@@ -12,14 +12,16 @@ function bscHeaders() {
 async function pollStatus(uuid: string, timeoutMs = 55_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 5000));
     const res = await fetch(`${BSC_BASE}/status`, {
       method: "POST",
       headers: { ...bscHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ uuid }),
+      body: JSON.stringify([uuid]),
     });
     const data = await res.json();
-    if (data.status !== "PROCESSING") return;
+    // Response is an array; check the first item's state
+    const item = Array.isArray(data) ? data[0] : data;
+    if (item?.state !== "PROCESSING" && item?.status !== "PROCESSING") return;
   }
   throw new Error("PDF conversion timed out after 55s");
 }
@@ -79,13 +81,18 @@ export async function POST(request: NextRequest) {
       throw new Error(`Upload failed (${uploadRes.status}): ${err}`);
     }
 
-    const uploadData = await uploadRes.json();
-    const uuid: string = uploadData.uuid ?? uploadData.id ?? uploadData.statementId;
+    const uploadRaw = await uploadRes.json();
+    // API returns an array of uploaded file objects
+    const uploadData = Array.isArray(uploadRaw) ? uploadRaw[0] : uploadRaw;
 
+    if (!uploadData) throw new Error("No data returned from upload");
+
+    const uuid: string = uploadData.uuid ?? uploadData.id ?? uploadData.statementId;
     if (!uuid) throw new Error("No UUID returned from upload");
 
     // Step 2: Poll if still processing
-    if (uploadData.status === "PROCESSING") {
+    const uploadState = uploadData.state ?? uploadData.status;
+    if (uploadState === "PROCESSING") {
       await pollStatus(uuid);
     }
 
@@ -93,7 +100,7 @@ export async function POST(request: NextRequest) {
     const convertRes = await fetch(`${BSC_BASE}/convert?format=JSON&raw=false`, {
       method: "POST",
       headers: { ...bscHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ uuid }),
+      body: JSON.stringify([uuid]),
     });
 
     if (!convertRes.ok) {
@@ -103,9 +110,13 @@ export async function POST(request: NextRequest) {
 
     const convertData = await convertRes.json();
 
-    // Map API response to our transaction shape
-    const rawTxns: Array<{ date?: string; description?: string; amount?: number; credit?: number; debit?: number }> =
-      Array.isArray(convertData) ? convertData : (convertData.transactions ?? convertData.data ?? []);
+    // API returns array of statement objects, each with a `normalised` array
+    // normalised rows have { date, description, amount } where amount is a string
+    const statementsArr = Array.isArray(convertData) ? convertData : [convertData];
+    const rawTxns: Array<{ date?: string; description?: string; amount?: string | number; credit?: number; debit?: number }> =
+      statementsArr.flatMap((s: { normalised?: unknown[]; transactions?: unknown[]; data?: unknown[] }) =>
+        s.normalised ?? s.transactions ?? s.data ?? (Array.isArray(s) ? s : [])
+      );
 
     if (rawTxns.length === 0) {
       return NextResponse.json(
@@ -117,7 +128,9 @@ export async function POST(request: NextRequest) {
     const transactions = rawTxns
       .filter((t) => t.date && (t.description || t.amount !== undefined))
       .map((t) => {
-        const amount = t.amount ?? (t.credit ? Math.abs(t.credit) : -(Math.abs(t.debit ?? 0)));
+        const amount = typeof t.amount === "string"
+          ? parseFloat(t.amount)
+          : (t.amount ?? (t.credit ? Math.abs(t.credit) : -(Math.abs(t.debit ?? 0))));
         return {
           id: crypto.randomUUID(),
           date: t.date!,
