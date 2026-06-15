@@ -6,7 +6,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const BSC_BASE = "https://api2.bankstatementconverter.com/api/v1/BankStatement";
 
 function bscHeaders() {
-  return { Authorization: process.env.BSC_API_KEY ?? "" };
+  return { Authorization: (process.env.BSC_API_KEY ?? "").trim() };
 }
 
 async function pollStatus(uuid: string, timeoutMs = 55_000): Promise<void> {
