@@ -1,4 +1,5 @@
-import { extractText } from "unpdf";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (buf: Buffer) => Promise<{ text: string }>;
 
 interface ParsedTransaction {
   date: string;
@@ -170,8 +171,8 @@ function tryParseMultiLine(lines: string[], year: number): ParsedTransaction[] {
 
 export async function parseBankStatement(buffer: ArrayBuffer): Promise<ParseResult> {
   try {
-    const { text } = await extractText(new Uint8Array(buffer), { mergePages: true });
-    const fullText = Array.isArray(text) ? text.join("\n") : text;
+    const data = await pdfParse(Buffer.from(buffer));
+    const fullText = data.text;
 
     // Detect bank
     let bank = "GenericBank";
