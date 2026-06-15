@@ -14,12 +14,16 @@ interface AppState {
 
   merchantRules: MerchantRule[];
   addMerchantRule: (rule: MerchantRule) => void;
+  deleteMerchantRule: (merchantName: string) => void;
+  clearMerchantRules: () => void;
   getMerchantRules: () => MerchantRule[];
 
   uploadStatus: UploadStatus;
   setUploadStatus: (status: UploadStatus) => void;
   uploadProgress: number;
   setUploadProgress: (progress: number) => void;
+  uploadStep: string;
+  setUploadStep: (step: string) => void;
   errorMessage: string | null;
   setErrorMessage: (message: string | null) => void;
 
@@ -84,12 +88,21 @@ export const useStore = create<AppState>()(
           }
           return { merchantRules: [...state.merchantRules, rule] };
         }),
+      deleteMerchantRule: (merchantName) =>
+        set((state) => ({
+          merchantRules: state.merchantRules.filter(
+            (r) => r.merchantName.toLowerCase() !== merchantName.toLowerCase()
+          ),
+        })),
+      clearMerchantRules: () => set({ merchantRules: [] }),
       getMerchantRules: () => get().merchantRules,
 
       uploadStatus: "idle",
       setUploadStatus: (status) => set({ uploadStatus: status }),
       uploadProgress: 0,
       setUploadProgress: (progress) => set({ uploadProgress: progress }),
+      uploadStep: "",
+      setUploadStep: (step) => set({ uploadStep: step }),
       errorMessage: null,
       setErrorMessage: (message) => set({ errorMessage: message }),
 

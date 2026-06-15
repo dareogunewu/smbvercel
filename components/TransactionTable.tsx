@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, Filter, CheckSquare } from "lucide-react";
 
 type SortField = "date" | "description" | "category" | "amount";
 type SortDir = "asc" | "desc";
@@ -37,6 +38,13 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [amountMin, setAmountMin] = useState("");
+  const [amountMax, setAmountMax] = useState("");
 
   const allCategories = getAllCategoryNames();
 
@@ -60,6 +68,21 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
       );
     }
 
+    if (dateFrom) {
+      filtered = filtered.filter((t) => t.date >= dateFrom);
+    }
+    if (dateTo) {
+      filtered = filtered.filter((t) => t.date <= dateTo);
+    }
+    if (amountMin !== "") {
+      const min = parseFloat(amountMin);
+      if (!isNaN(min)) filtered = filtered.filter((t) => Math.abs(t.amount) >= min);
+    }
+    if (amountMax !== "") {
+      const max = parseFloat(amountMax);
+      if (!isNaN(max)) filtered = filtered.filter((t) => Math.abs(t.amount) <= max);
+    }
+
     return [...filtered].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
@@ -78,7 +101,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [transactions, search, categoryFilter, sortField, sortDir]);
+  }, [transactions, search, categoryFilter, sortField, sortDir, dateFrom, dateTo, amountMin, amountMax]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -90,11 +113,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
   };
 
   const handleCategoryChange = (transaction: Transaction, category: string) => {
-    updateTransaction(transaction.id, {
-      category,
-      needsReview: false,
-      confidence: 1.0,
-    });
+    updateTransaction(transaction.id, { category, needsReview: false, confidence: 1.0 });
     const merchantName = extractMerchantName(transaction.description);
     const alreadyKnown = merchantRules.some(
       (r) => r.merchantName.toLowerCase() === merchantName.toLowerCase()
@@ -105,6 +124,43 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
     setEditingId(null);
   };
 
+  const handleBulkApply = () => {
+    if (!bulkCategory || selectedIds.size === 0) return;
+    selectedIds.forEach((id) => {
+      const txn = transactions.find((t) => t.id === id);
+      if (!txn) return;
+      updateTransaction(id, { category: bulkCategory, needsReview: false, confidence: 1.0 });
+      const merchantName = extractMerchantName(txn.description);
+      const alreadyKnown = merchantRules.some(
+        (r) => r.merchantName.toLowerCase() === merchantName.toLowerCase()
+      );
+      if (!alreadyKnown) {
+        addMerchantRule({ merchantName, category: bulkCategory, timestamp: Date.now() });
+      }
+    });
+    setSelectedIds(new Set());
+    setBulkCategory("");
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === sorted.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sorted.map((t) => t.id)));
+    }
+  };
+
+  const hasActiveFilters = dateFrom || dateTo || amountMin || amountMax;
+
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />;
     return sortDir === "asc"
@@ -112,12 +168,12 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
       : <ArrowDown className="h-3.5 w-3.5" />;
   };
 
-  const SortHeader = ({ field, label, align = "left" }: { field: SortField; label: string; align?: string }) => (
+  const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
     <th
-      className={`px-4 py-3 text-${align} text-sm font-medium cursor-pointer select-none hover:text-foreground`}
+      className="px-4 py-3 text-left text-sm font-medium cursor-pointer select-none hover:text-foreground"
       onClick={() => handleSort(field)}
     >
-      <span className="flex items-center gap-1 justify-start">
+      <span className="flex items-center gap-1">
         {label}
         <SortIcon field={field} />
       </span>
@@ -145,7 +201,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
           </div>
         </div>
 
-        {/* Controls */}
+        {/* Search + filter row */}
         <div className="flex gap-2 flex-wrap pt-1">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -182,19 +238,209 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
               })}
             </SelectContent>
           </Select>
+          <Button
+            variant={hasActiveFilters ? "default" : "outline"}
+            size="sm"
+            className="gap-1.5 shrink-0"
+            onClick={() => setShowFilters((v) => !v)}
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-0.5 text-xs px-1 py-0 bg-white/20">
+                {[dateFrom, dateTo, amountMin, amountMax].filter(Boolean).length}
+              </Badge>
+            )}
+          </Button>
         </div>
+
+        {/* Expanded filters */}
+        {showFilters && (
+          <div className="flex gap-3 flex-wrap pt-1 pb-1 border-t mt-1">
+            <div className="flex items-center gap-2 text-sm">
+              <label className="text-muted-foreground whitespace-nowrap">Date from</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-8 px-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <label className="text-muted-foreground whitespace-nowrap">to</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-8 px-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <label className="text-muted-foreground whitespace-nowrap">Amount $</label>
+              <input
+                type="number"
+                placeholder="min"
+                value={amountMin}
+                onChange={(e) => setAmountMin(e.target.value)}
+                className="h-8 w-20 px-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <span className="text-muted-foreground">–</span>
+              <input
+                type="number"
+                placeholder="max"
+                value={amountMax}
+                onChange={(e) => setAmountMax(e.target.value)}
+                className="h-8 w-20 px-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => { setDateFrom(""); setDateTo(""); setAmountMin(""); setAmountMax(""); }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2 pt-2 border-t mt-1 flex-wrap">
+            <CheckSquare className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <Select value={bulkCategory} onValueChange={setBulkCategory}>
+              <SelectTrigger className="h-8 text-sm w-[180px]">
+                <SelectValue placeholder="Assign category..." />
+              </SelectTrigger>
+              <SelectContent>
+                {allCategories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {getCategoryByName(cat)?.icon ?? ""} {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="sm" disabled={!bulkCategory} onClick={handleBulkApply}>
+              Apply
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="p-0">
-        <div className="rounded-b-lg border-t overflow-hidden">
+        {/* Mobile card view */}
+        <div className="sm:hidden divide-y">
+          {sorted.length === 0 ? (
+            <p className="px-4 py-8 text-center text-muted-foreground text-sm">
+              No transactions match your filters
+            </p>
+          ) : sorted.map((t) => {
+            const icon = getCategoryByName(t.category || "")?.icon ?? "";
+            return (
+              <div
+                key={t.id}
+                className={`px-4 py-3 ${t.needsReview ? "bg-yellow-50/60" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{t.description}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(t.date)}</p>
+                  </div>
+                  <span
+                    className={`text-sm font-semibold tabular-nums shrink-0 ${
+                      t.amount > 0 ? "text-emerald-600" : "text-red-600"
+                    }`}
+                  >
+                    {t.amount > 0 ? "+" : ""}{formatCurrency(t.amount)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  {editingId === t.id ? (
+                    <Select
+                      value={t.category || ""}
+                      onValueChange={(v) => handleCategoryChange(t, v)}
+                      open
+                      onOpenChange={(open) => !open && setEditingId(null)}
+                    >
+                      <SelectTrigger className="h-7 text-xs flex-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allCategories.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {getCategoryByName(cat)?.icon ?? ""} {cat}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <button
+                      className="text-xs text-left flex items-center gap-1 hover:underline"
+                      onClick={() => setEditingId(t.id)}
+                    >
+                      <span>{icon}</span>
+                      <span className={!t.category || t.category === "Uncategorized" ? "text-muted-foreground italic" : ""}>
+                        {t.category || "Uncategorized"}
+                      </span>
+                    </button>
+                  )}
+                  {t.needsReview && (
+                    <Badge variant="warning" className="text-xs ml-auto">Review</Badge>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {sorted.length > 0 && (
+            <div className="px-4 py-3 bg-muted/50 flex items-center justify-between">
+              <span className="text-sm font-semibold">{sorted.length} transactions</span>
+              {(() => {
+                const net = sorted.reduce((s, t) => s + t.amount, 0);
+                return (
+                  <span className={`text-sm font-semibold tabular-nums ${net >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                    {net >= 0 ? "+" : ""}{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(net)}
+                  </span>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* Desktop table view */}
+        <div className="hidden sm:block rounded-b-lg border-t overflow-hidden">
           <div className="max-h-[520px] overflow-y-auto">
             <table className="w-full">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr className="border-b">
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={sorted.length > 0 && selectedIds.size === sorted.length}
+                      ref={(el) => {
+                        if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < sorted.length;
+                      }}
+                      onChange={toggleSelectAll}
+                      className="rounded"
+                    />
+                  </th>
                   <SortHeader field="date" label="Date" />
                   <SortHeader field="description" label="Description" />
                   <SortHeader field="category" label="Category" />
-                  <th className="px-4 py-3 text-right text-sm font-medium cursor-pointer select-none hover:text-foreground" onClick={() => handleSort("amount")}>
+                  <th
+                    className="px-4 py-3 text-right text-sm font-medium cursor-pointer select-none hover:text-foreground"
+                    onClick={() => handleSort("amount")}
+                  >
                     <span className="flex items-center justify-end gap-1">
                       Amount <SortIcon field="amount" />
                     </span>
@@ -205,87 +451,96 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
               <tbody>
                 {sorted.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">
                       No transactions match your filters
                     </td>
                   </tr>
                 ) : sorted.map((transaction) => (
-                    <tr
-                      key={transaction.id}
-                      className={`border-b transition-colors hover:bg-muted/30 ${
-                        transaction.needsReview ? "bg-yellow-50/60" : ""
+                  <tr
+                    key={transaction.id}
+                    className={`border-b transition-colors hover:bg-muted/30 ${
+                      selectedIds.has(transaction.id) ? "bg-primary/5" : ""
+                    } ${transaction.needsReview && !selectedIds.has(transaction.id) ? "bg-yellow-50/60" : ""}`}
+                  >
+                    <td className="px-4 py-2.5 w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(transaction.id)}
+                        onChange={() => toggleSelect(transaction.id)}
+                        className="rounded"
+                      />
+                    </td>
+                    <td className="px-4 py-2.5 text-sm whitespace-nowrap text-muted-foreground">
+                      {formatDate(transaction.date)}
+                    </td>
+                    <td className="px-4 py-2.5 text-sm max-w-xs">
+                      <span className="block truncate" title={transaction.description}>
+                        {transaction.description}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-sm min-w-[160px]">
+                      {editingId === transaction.id ? (
+                        <Select
+                          value={transaction.category || ""}
+                          onValueChange={(v) => handleCategoryChange(transaction, v)}
+                          open
+                          onOpenChange={(open) => !open && setEditingId(null)}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allCategories.map((cat) => {
+                              const icon = getCategoryByName(cat)?.icon ?? "";
+                              return (
+                                <SelectItem key={cat} value={cat}>
+                                  {icon} {cat}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <button
+                          className="flex items-center gap-1 text-left hover:underline focus:outline-none"
+                          onClick={() => setEditingId(transaction.id)}
+                          title="Click to change category"
+                        >
+                          <span>{getCategoryByName(transaction.category || "")?.icon ?? ""}</span>
+                          <span className={!transaction.category || transaction.category === "Uncategorized" ? "text-muted-foreground italic" : ""}>
+                            {transaction.category || "Uncategorized"}
+                          </span>
+                        </button>
+                      )}
+                    </td>
+                    <td
+                      className={`px-4 py-2.5 text-sm text-right font-medium tabular-nums ${
+                        transaction.amount > 0 ? "text-emerald-600" : "text-red-600"
                       }`}
                     >
-                      <td className="px-4 py-2.5 text-sm whitespace-nowrap text-muted-foreground">
-                        {formatDate(transaction.date)}
-                      </td>
-                      <td className="px-4 py-2.5 text-sm max-w-xs">
-                        <span className="block truncate" title={transaction.description}>
-                          {transaction.description}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-sm min-w-[160px]">
-                        {editingId === transaction.id ? (
-                          <Select
-                            value={transaction.category || ""}
-                            onValueChange={(v) => handleCategoryChange(transaction, v)}
-                            open
-                            onOpenChange={(open) => !open && setEditingId(null)}
-                          >
-                            <SelectTrigger className="h-7 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {allCategories.map((cat) => {
-                                const icon = getCategoryByName(cat)?.icon ?? "";
-                                return (
-                                  <SelectItem key={cat} value={cat}>
-                                    {icon} {cat}
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <button
-                            className="flex items-center gap-1 text-left hover:underline focus:outline-none"
-                            onClick={() => setEditingId(transaction.id)}
-                            title="Click to change category"
-                          >
-                            <span>{getCategoryByName(transaction.category || "")?.icon ?? ""}</span>
-                            <span className={!transaction.category || transaction.category === "Uncategorized" ? "text-muted-foreground italic" : ""}>
-                              {transaction.category || "Uncategorized"}
-                            </span>
-                          </button>
-                        )}
-                      </td>
-                      <td
-                        className={`px-4 py-2.5 text-sm text-right font-medium tabular-nums ${
-                          transaction.amount > 0 ? "text-emerald-600" : "text-red-600"
-                        }`}
-                      >
-                        {transaction.amount > 0 ? "+" : ""}
-                        {formatCurrency(transaction.amount)}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {transaction.needsReview ? (
-                          <Badge variant="warning" className="text-xs">Review</Badge>
-                        ) : transaction.confidence !== undefined && transaction.confidence >= 0.8 ? (
-                          <Badge variant="success" className="text-xs">
-                            {Math.round(transaction.confidence * 100)}%
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">
-                            {Math.round((transaction.confidence || 0) * 100)}%
-                          </Badge>
-                        )}
-                      </td>
-                    </tr>
+                      {transaction.amount > 0 ? "+" : ""}
+                      {formatCurrency(transaction.amount)}
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      {transaction.needsReview ? (
+                        <Badge variant="warning" className="text-xs">Review</Badge>
+                      ) : transaction.confidence !== undefined && transaction.confidence >= 0.8 ? (
+                        <Badge variant="success" className="text-xs">
+                          {Math.round(transaction.confidence * 100)}%
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">
+                          {Math.round((transaction.confidence || 0) * 100)}%
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
                 ))}
               </tbody>
               {sorted.length > 0 && (
                 <tfoot className="bg-muted/50 border-t-2 sticky bottom-0">
                   <tr>
+                    <td className="px-4 py-2.5" />
                     <td className="px-4 py-2.5 text-sm font-semibold" colSpan={2}>
                       {sorted.length} transaction{sorted.length !== 1 ? "s" : ""}
                     </td>

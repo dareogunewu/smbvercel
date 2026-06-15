@@ -1,41 +1,24 @@
 /**
  * Simple passkey authentication system
  * Uses browser localStorage to track authentication state
+ * Passkey verification happens server-side via /api/auth (hash never exposed to client)
  */
 
-// Hash function for secure password comparison
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
 /**
- * Set the site passkey (only needs to be done once)
- * This should be set via environment variable
- */
-export function getPasskeyHash(): string {
-  // In production, this should come from environment variable
-  // For now, we'll use a default that you should change
-  return process.env.NEXT_PUBLIC_PASSKEY_HASH || '';
-}
-
-/**
- * Verify if the provided passkey is correct
+ * Verify if the provided passkey is correct (server-side comparison)
  */
 export async function verifyPasskey(passkey: string): Promise<boolean> {
-  const passkeyHash = getPasskeyHash();
-
-  // If no passkey is set, allow access (for initial setup)
-  if (!passkeyHash) {
-    console.warn('No passkey configured! Set NEXT_PUBLIC_PASSKEY_HASH environment variable.');
-    return true;
+  try {
+    const res = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passkey }),
+    });
+    const data = await res.json();
+    return data.success === true;
+  } catch {
+    return false;
   }
-
-  const inputHash = await hashPassword(passkey);
-  return inputHash === passkeyHash;
 }
 
 /**

@@ -8,6 +8,7 @@ import { CategoryReview } from "@/components/CategoryReview";
 import { ReportGenerator } from "@/components/ReportGenerator";
 import { LoginPage } from "@/components/LoginPage";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { MerchantRulesManager } from "@/components/MerchantRulesManager";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,8 @@ export default function Home() {
     clearTransactions,
     uploadStatus,
     setUploadStatus,
+    uploadStep,
+    setUploadStep,
     errorMessage,
     merchantRules,
     isMultiMonthMode,
@@ -62,13 +65,17 @@ export default function Home() {
     }
 
     current.setUploadStatus("processing");
+    current.setUploadStep("Matching known merchants...");
 
     fetch("/api/categorize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ transactions: txns, merchantRules: current.merchantRules }),
     })
-      .then((r) => r.json())
+      .then((r) => {
+        useStore.getState().setUploadStep("AI categorizing unknown transactions...");
+        return r.json();
+      })
       .then((data) => {
         if (data.success) {
           useStore.getState().setTransactions(data.transactions);
@@ -77,8 +84,12 @@ export default function Home() {
           }
         }
         useStore.getState().setUploadStatus("complete");
+        useStore.getState().setUploadStep("");
       })
-      .catch(() => useStore.getState().setUploadStatus("complete"));
+      .catch(() => {
+        useStore.getState().setUploadStatus("complete");
+        useStore.getState().setUploadStep("");
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadStatus]);
 
@@ -111,10 +122,13 @@ export default function Home() {
             Upload bank statements, categorize transactions, generate reports
           </p>
         </div>
-        <Button onClick={handleLogout} variant="outline" size="sm" className="gap-2">
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
+        <div className="flex items-center gap-2">
+          <MerchantRulesManager />
+          <Button onClick={handleLogout} variant="outline" size="sm" className="gap-2">
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </div>
       </div>
 
       {errorMessage && (
@@ -155,7 +169,7 @@ export default function Home() {
               </div>
               <div className="flex items-center gap-2">
                 {uploadStatus === "processing" && (
-                  <Badge variant="secondary">AI categorizing...</Badge>
+                  <Badge variant="secondary">{uploadStep || "AI categorizing..."}</Badge>
                 )}
                 {uploadStatus === "complete" && categorized === transactions.length && (
                   <Badge variant="success">All categorized</Badge>
