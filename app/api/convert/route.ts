@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadRateLimiter } from "@/lib/rate-limit";
 import { validateOrigin } from "@/lib/csrf";
-import { exec } from "child_process";
-import { promisify } from "util";
-import { writeFile, unlink } from "fs/promises";
-import path from "path";
-import { tmpdir } from "os";
-
-const execAsync = promisify(exec);
+import { parseBankStatement } from "@/lib/pdf-parser";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -58,47 +52,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let parsedData: {
-      success: boolean;
-      bank?: string;
-      transactions?: Array<{ date: string; description: string; amount: number }>;
-      error?: string;
-      metadata?: {
-        total_transactions: number;
-        safety_check_passed: boolean;
-        statement_type: string;
-      };
-    };
+    const buffer = await file.arrayBuffer();
+    const parsedData = await parseBankStatement(buffer);
 
-    try {
-      const fileBuffer = Buffer.from(await file.arrayBuffer());
-      const tempFilePath = path.join(tmpdir(), `statement_${Date.now()}.pdf`);
-      await writeFile(tempFilePath, fileBuffer);
-
-      const scriptPath = path.join(process.cwd(), "scripts", "parse_statement.py");
-      const { stdout, stderr } = await execAsync(`python3 "${scriptPath}" "${tempFilePath}"`);
-
-      if (stderr) {
-        console.warn("Python parser warnings:", stderr);
-      }
-
-      parsedData = JSON.parse(stdout);
-
-      await unlink(tempFilePath).catch(() => {});
-
-      if (!parsedData.success) {
-        throw new Error(parsedData.error || "Failed to parse PDF");
-      }
-    } catch (error) {
-      console.error("Error parsing PDF with local parser:", error);
-      throw new Error(
-        error instanceof Error
-          ? `PDF parsing error: ${error.message}`
-          : "Failed to parse PDF. Please try again."
+    if (!parsedData.success) {
+      return NextResponse.json(
+        { error: parsedData.error || "Failed to parse PDF" },
+        { status: 422 }
       );
     }
 
-    const transactions = (parsedData.transactions ?? []).map((txn, index) => ({
+    const transactions = parsedData.transactions.map((txn) => ({
       id: crypto.randomUUID(),
       date: txn.date,
       description: txn.description,
