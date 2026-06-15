@@ -9,6 +9,7 @@ export interface ParseResult {
     safety_check_passed: boolean;
     statement_type: string;
   };
+  confidence: "high" | "partial" | "failed";
   error?: string;
 }
 
@@ -216,17 +217,22 @@ export async function parseBankStatement(buffer: ArrayBuffer): Promise<ParseResu
       return seen.has(k) ? false : (seen.add(k), true);
     });
 
+    const confidence: ParseResult["confidence"] =
+      deduped.length === 0 ? "failed" : deduped.length < 5 ? "partial" : "high";
+
     return {
       success: deduped.length > 0,
       bank,
       transactions: deduped,
       metadata: { total_transactions: deduped.length, safety_check_passed: true, statement_type: "checking" },
+      confidence,
       error: deduped.length === 0 ? "No transactions found. The PDF may use an unsupported format." : undefined,
     };
   } catch (e) {
     return {
       success: false, bank: "Unknown", transactions: [],
       metadata: { total_transactions: 0, safety_check_passed: false, statement_type: "unknown" },
+      confidence: "failed",
       error: e instanceof Error ? e.message : "Failed to parse PDF",
     };
   }

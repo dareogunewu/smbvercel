@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
       count: transactions.length,
       bank: parsedData.bank,
       metadata: parsedData.metadata,
+      confidence: parsedData.confidence,
     });
   } catch (error) {
     console.error("Error converting PDF:", error);
