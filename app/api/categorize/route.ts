@@ -1,20 +1,38 @@
 import { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { batchCategorizeTransactions } from "@/lib/categorization";
 import { getAllCategoryNames } from "@/lib/categories";
 import { Transaction, MerchantRule } from "@/lib/types";
 import { apiRateLimiter } from "@/lib/rate-limit";
 
-let client: Anthropic | null = null;
-function getClient() {
-  if (!client) client = new Anthropic();
-  return client;
-}
+const GEMINI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 const CHUNK_SIZE = 40;
 const enc = new TextEncoder();
 
 function sseEvent(event: string, data: unknown): Uint8Array {
   return enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+async function callGemini(prompt: string): Promise<string> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY not set");
+
+  const res = await fetch(`${GEMINI_URL}?key=${key}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.1 },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
 export async function POST(request: NextRequest) {
@@ -43,7 +61,7 @@ export async function POST(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        // Phase 1: local categorization (instant)
+        // Phase 1: local pattern matching (instant)
         const localResults = batchCategorizeTransactions(transactions, merchantRules);
         controller.enqueue(sseEvent("progress", {
           transactions: localResults,
@@ -53,13 +71,13 @@ export async function POST(request: NextRequest) {
 
         const needsAI = localResults.filter((t) => t.needsReview);
 
-        if (needsAI.length === 0 || !process.env.ANTHROPIC_API_KEY) {
+        if (needsAI.length === 0 || !process.env.GEMINI_API_KEY) {
           controller.enqueue(sseEvent("done", { transactions: localResults }));
           controller.close();
           return;
         }
 
-        // Phase 2: AI batches — one Claude call per chunk
+        // Phase 2: Gemini AI batches
         const categoryList = getAllCategoryNames().join(", ");
         const chunks: typeof needsAI[] = [];
         for (let i = 0; i < needsAI.length; i += CHUNK_SIZE) {
@@ -81,23 +99,17 @@ Transactions:
 ${chunk.map((t) => `{"id":"${t.id}","description":${JSON.stringify(t.description)},"amount":${t.amount}}`).join("\n")}`;
 
           try {
-            const message = await getClient().messages.create({
-              model: "claude-haiku-4-5-20251001",
-              max_tokens: 2048,
-              messages: [{ role: "user", content: prompt }],
-            });
-
-            const text = message.content[0].type === "text" ? message.content[0].text : "";
+            const text = await callGemini(prompt);
             const jsonMatch = text.match(/\[[\s\S]*\]/);
             if (jsonMatch) {
-              const parsed: { id: string; category: string; confidence: number; reason?: string }[] = JSON.parse(jsonMatch[0]);
+              const parsed: { id: string; category: string; confidence: number; reason?: string }[] =
+                JSON.parse(jsonMatch[0]);
               for (const r of parsed) aiMap.set(r.id, r);
             }
           } catch (err) {
             console.error(`AI chunk ${ci} failed:`, err);
           }
 
-          // Emit updated snapshot after each chunk
           const snapshot = localResults.map((t) => {
             const ai = aiMap.get(t.id);
             if (ai && t.needsReview) {
